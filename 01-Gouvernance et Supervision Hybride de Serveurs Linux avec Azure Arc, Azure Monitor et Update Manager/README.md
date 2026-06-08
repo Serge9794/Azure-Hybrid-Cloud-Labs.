@@ -2,7 +2,7 @@
 ## Azure Arc · Azure Monitor · Update Manager
 
 > **Auteur :** Serge TOGNON — Administrateur Cloud Azure Certifié (AZ-104) | Candidat RHCSA
-> [![LinkedIn](https://img.shields.io/badge/LinkedIn-Serge_TOGNON-0077B5?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/serge-tognon)
+> [![LinkedIn](https://img.shields.io/badge/LinkedIn-Serge_TOGNON-0077B5?logo=linkedin&logoColor=white)](www.linkedin.com/in/serge-tognon-a63443187)
 > [![AZ-104](https://img.shields.io/badge/Microsoft-AZ--104_Certified-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/certifications/azure-administrator/)
 > [![RHCSA](https://img.shields.io/badge/Red_Hat-Candidat_RHCSA-EE0000?logo=redhat&logoColor=white)](https://www.redhat.com/en/services/certification/rhcsa)
 
@@ -37,7 +37,7 @@
 
 **FinSecure SA** est une société de services financiers basée à Cotonou, opérant dans l'espace UEMOA. Elle gère des données sensibles hautement soumises aux réglementations **RGPD**, **ISO 27001** et **PCI-DSS**.
 
-La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Linux hébergés dans un datacenter local. Face à la complexification de l'infrastructure et aux exigences de conformité croissantes, le DSI a décidé de **moderniser l'administration et d'unifier la gouvernance sans migration immédiate vers le cloud public** — une approche hybride via **Azure Arc**.
+La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Linux hébergés dans un datacenter local. Face à la complexification de l'infrastructure et aux exigences de conformité croissantes, le DSI a décidé de **moderniser l'administration et d'unifier la gouvernance sans migration immédiate vers le cloud public** une approche hybride via **Azure Arc**.
 
 ### Problématiques résolues
 
@@ -76,7 +76,7 @@ La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Lin
                            │                │
                  ┌─────────▼────────────────▼──────────┐
                  │       DATACENTER LOCAL               │
-                 │       FinSecure SA — Cotonou         │
+                 │       FinSecure SA  Cotonou         │
                  │                                      │
                  │  ┌─────────────────────────────┐    │
                  │  │  VM1 : admin.lab.local        │    │
@@ -114,8 +114,8 @@ La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Lin
 |---|---|
 | Hyperviseur | VirtualBox 7.2.8 |
 | OS Invités | Red Hat Enterprise Linux 9 (RHEL 9) |
-| VM Admin | `admin.lab.local` — IP : 192.168.10.1 |
-| VM Serveur | `server.lab.local` — IP : 192.168.10.2 |
+| VM Admin | `admin.lab.local` IP : 192.168.10.1 |
+| VM Serveur | `server.lab.local`  IP : 192.168.10.2 |
 | Région Azure | France Central (`francecentral`) |
 | Resource Group | `rg-finsecure-arc` |
 
@@ -139,7 +139,7 @@ Créer deux machines virtuelles avec les paramètres suivants :
 
 ```bash
 # Interface Host-Only avec IP statique
-sudo nmcli con mod "enp0s8" \
+sudo nmcli con mod "Internal-LAN" \
   ipv4.addresses 192.168.10.1/24 \
   ipv4.method manual \
   ipv4.never-default yes \
@@ -154,9 +154,8 @@ sudo nmcli con mod "enp0s3" \
 
 sudo nmcli con up "enp0s3"
 ```
+<img width="650" height="311" alt="2a" src="https://github.com/user-attachments/assets/80d3a62f-d367-4dd3-b400-dbbc0a3e5377" />
 
-> **📸 Capture 2a** — `screenshots/02a_vm1_network_config.png`
-> Exécuter `ip addr show` sur **admin.lab.local** — l'interface `enp0s8` doit afficher `192.168.10.1/24`.
 
 ---
 
@@ -180,8 +179,8 @@ sudo nmcli con mod "enp0s3" \
 sudo nmcli con up "enp0s3"
 ```
 
-> **📸 Capture 2b** — `screenshots/02b_vm2_network_config.png`
-> Exécuter `ip addr show` sur **server.lab.local** — l'interface `enp0s8` doit afficher `192.168.10.2/24`.
+<img width="656" height="404" alt="2b" src="https://github.com/user-attachments/assets/cbf259c5-8905-4947-8c30-3f37ddbd4006" />
+
 
 ---
 
@@ -201,7 +200,10 @@ sudo tee -a /etc/hosts << EOF
 192.168.10.2    server.lab.local   server
 EOF
 ```
+<img width="662" height="193" alt="2a&#39;" src="https://github.com/user-attachments/assets/a569b152-3a1e-4ad2-8b4d-4dfe9b804809" />
+<img width="692" height="197" alt="2b&#39;" src="https://github.com/user-attachments/assets/0939e3c1-d790-4752-883b-953e735a1fad" />
 
+--
 ### Vérifications de connectivité
 
 ```bash
@@ -212,12 +214,7 @@ ping -c 4 server.lab.local    # depuis admin.lab.local
 ping -c 4 8.8.8.8
 curl -sI https://management.azure.com/ | head -n 5
 ```
-
-> **📸 Capture 2c** — `screenshots/02c_ping_connectivity.png`
-> Résultat attendu : `0% packet loss` lors du ping mutuel entre les deux VMs.
-
-> **📸 Capture 2d** — `screenshots/02d_internet_connectivity.png`
-> Résultat attendu : réponse HTTP 200 ou JSON Azure Resource Manager via le `curl`.
+<img width="688" height="401" alt="2c" src="https://github.com/user-attachments/assets/e5e12bdf-08ea-4e3e-a46f-fa62070f8c97" />
 
 ---
 
@@ -245,19 +242,21 @@ sudo chmod 440 /etc/sudoers.d/arcadmin
 # Valider la syntaxe sudoers
 sudo visudo -c
 ```
+<img width="645" height="324" alt="2d" src="https://github.com/user-attachments/assets/328b72bb-cf88-4bb2-956e-e2c19be7b4b2" />
+<img width="641" height="295" alt="2d&#39;" src="https://github.com/user-attachments/assets/3ded7433-16a2-488f-beda-33358af22fcb" />
+
 
 ### Authentification SSH par clé (depuis arcadmin sur VM1)
 
 ```bash
 # 1. Générer une paire de clés asymétriques sécurisées (Ed25519)
-ssh-keygen -t ed25519 -C "arcadmin@finsecure-sa" -f ~/.ssh/id_arc -N ""
+ssh-keygen -t ed25519 -C "Arc_projet@Finsecure-sa" -f ~/.ssh/id_arc -N ""
 
 # 2. Copier la clé publique vers le serveur métier
 ssh-copy-id -i ~/.ssh/id_arc.pub arcadmin@192.168.10.2
 ```
+<img width="650" height="321" alt="3-c" src="https://github.com/user-attachments/assets/66b629cb-d157-4362-a747-3e8eb634f736" />
 
-> **📸 Capture 3c** — `screenshots/03c_ssh_key_auth.png`
-> Lancer `ssh -i ~/.ssh/id_arc arcadmin@192.168.10.2` — le banner FinSecure doit s'afficher et le prompt `arcadmin@server` s'ouvrir **sans demande de mot de passe**.
 
 ---
 
@@ -298,14 +297,15 @@ sudo firewall-cmd --permanent --remove-service=dhcpv6-client
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all
 ```
+<img width="682" height="417" alt="3a" src="https://github.com/user-attachments/assets/6bced4aa-31da-4f4b-a0dd-e68436d247bd" />
+<img width="661" height="350" alt="3a&#39;" src="https://github.com/user-attachments/assets/b30aaf9f-65d1-46c5-849f-dbd5dee4e141" />
 
-> **📸 Capture 3a** — `screenshots/03a_firewalld_rules.png`
-> La zone `public` doit afficher `services: ssh` uniquement — aucun port superflu ouvert.
+
 
 ---
 
 ### Durcissement SELinux (Mandatory Access Control)
-
+ **Sur les deux VMs**
 ```bash
 # Activer immédiatement le mode Enforcing
 sudo setenforce 1
@@ -319,9 +319,9 @@ sudo sed -i '/^SELINUX=/c\SELINUX=enforcing' /etc/selinux/config
 # Vérifier le statut
 sestatus
 ```
+<img width="645" height="263" alt="3b" src="https://github.com/user-attachments/assets/0df30927-d198-4f6a-8415-77f0933a6b57" />
 
-> **📸 Capture 3b** — `screenshots/03b_selinux_enforcing.png`
-> `sestatus` doit afficher `SELinux status: enabled` et `Current mode: enforcing`.
+<img width="642" height="337" alt="3b&#39;" src="https://github.com/user-attachments/assets/b01c5496-2be6-4ba0-bc56-a3388ec82a83" />
 
 ---
 
@@ -353,10 +353,9 @@ az group create \
 # Vérification
 az group show --name rg-finsecure-arc --output table
 ```
+<img width="949" height="82" alt="4a" src="https://github.com/user-attachments/assets/bd4f6891-9761-411d-970a-bc3e5f58f897" />
+<img width="923" height="415" alt="4a&#39;" src="https://github.com/user-attachments/assets/3abad903-af63-4fb4-90c1-5a3add9e3dce" />
 
-> **📸 Capture 4a** — `screenshots/04a_resource_group_created.png`
-> Chemin portail : `Groupes de ressources → rg-finsecure-arc → Vue d'ensemble`
-> Les **5 tags** (Entreprise, Projet, Environnement, Responsable, CentreCoût) doivent être visibles dans le panneau de droite, avec la région `France Central`.
 
 ---
 
@@ -383,18 +382,11 @@ az monitor log-analytics workspace create \
   --sku PerGB2018 \
   --retention-time 90
 ```
+<img width="960" height="217" alt="5a" src="https://github.com/user-attachments/assets/89221511-2add-43dc-8fa8-3660201aa0be" />
+<img width="917" height="356" alt="5b" src="https://github.com/user-attachments/assets/57682316-d08d-43c4-a228-ed9c16e83aac" />
+<img width="916" height="391" alt="5c" src="https://github.com/user-attachments/assets/9edaf8f1-c1e3-481c-8f22-2dd1426ee327" />
 
-> 💡 **Coût estimé :** ~2,76 $/Go ingéré. Pour ce lab avec 2 VMs, compter **moins de 5 $/mois**. Les données sont conservées 90 jours.
-
-> **📸 Capture 5a** — `screenshots/05a_law_created.png`
-> Chemin portail : `Log Analytics Workspaces → law-finsecure-prod → Vue d'ensemble`
-> Le workspace doit afficher son **Workspace ID** (GUID), la région `France Central`, le SKU `PerGB2018` et la rétention `90 jours`.
-
-> **📸 Capture 5b** — `screenshots/05b_law_tables.png`
-> Chemin portail : `law-finsecure-prod → Tables`
-> La liste des tables système doit inclure `Heartbeat`, `Syslog` et `InsightsMetrics`.
-
----
+----
 
 ## 🔗 Chapitre 6 — Déploiement Azure Arc
 
@@ -406,6 +398,12 @@ Azure Arc installe un agent `azcmagent` sur chaque serveur Linux. Cet agent :
 - Maintient un heartbeat permanent vers Azure Resource Manager
 - Permet l'application de policies Azure Policy
 - Sert de vecteur de déploiement pour les extensions (AMA, etc.)
+### Installation de l'extension
+az extension add --name connectedmachine
+az extension list --output table
+# → connectedmachine doit apparaître dans la liste
+<img width="960" height="196" alt="5d" src="https://github.com/user-attachments/assets/61b1bbab-737a-4f34-9b7c-27b35310b08e" />
+
 
 ### Étape 1 — Génération du script d'onboarding
 
@@ -420,9 +418,8 @@ az connectedmachine generate-install-script \
 
 Ou depuis le portail : **Azure Arc → Machines → + Ajouter → Générer un script**
 
-> **📸 Capture 6a** — `screenshots/06a_arc_script_portal.png`
-> Chemin portail : `Azure Arc → Machines → + Ajouter → Générer un script`
-> Le formulaire doit afficher le Resource Group `rg-finsecure-arc`, la région `France Central` et le type d'OS `Linux`.
+<img width="845" height="401" alt="6a" src="https://github.com/user-attachments/assets/565698e1-a301-41ed-aab4-1fb69e198c77" />
+<img width="960" height="326" alt="6b" src="https://github.com/user-attachments/assets/7670b9aa-ec38-4d90-9b4f-3c064b5dc61d" />
 
 ---
 
@@ -1211,61 +1208,6 @@ sealert -a /var/log/audit/audit.log
 
 ---
 
-## 📁 Structure du dépôt
-
-```
-05-azure-arc-hybrid-governance/
-│
-├── README.md                           ← Ce fichier
-│
-├── screenshots/
-│   ├── 02a_vm1_network_config.png
-│   ├── 02b_vm2_network_config.png
-│   ├── 02c_ping_connectivity.png
-│   ├── 02d_internet_connectivity.png
-│   ├── 03a_firewalld_rules.png
-│   ├── 03b_selinux_enforcing.png
-│   ├── 03c_ssh_key_auth.png
-│   ├── 04a_resource_group_created.png
-│   ├── 05a_law_created.png
-│   ├── 05b_law_tables.png
-│   ├── 06a_arc_script_portal.png
-│   ├── 06b_arc_agent_install_vm1.png
-│   ├── 06c_arc_connect_vm1.png
-│   ├── 06d_arc_connect_vm2.png
-│   ├── 07a_arc_machines_connected.png
-│   ├── 07b_arc_machine_details.png
-│   ├── 07c_arc_inventory.png
-│   ├── 08a_ama_extension_install.png
-│   ├── 08b_ama_installed_both_vms.png
-│   ├── 08c_ama_service_running.png
-│   ├── 09a_dcr_created.png
-│   ├── 09b_dcr_performance_counters.png
-│   ├── 09c_dcr_syslog.png
-│   ├── 09d_dcr_associations.png
-│   ├── 10a_kql_heartbeat.png
-│   ├── 10b_kql_cpu_chart.png
-│   ├── 10c_kql_ssh_logins.png
-│   ├── 10d_kql_sudo_audit.png
-│   ├── 11a_alert_cpu_created.png
-│   ├── 11b_action_group.png
-│   ├── 12a_update_manager_overview.png
-│   ├── 12b_updates_available.png
-│   ├── 12c_deployment_schedule.png
-│   ├── 13a_update_history.png
-│   ├── 13b_diff_packages.png
-│   ├── 14a_dashboard_overview.png
-│   └── 15a_compliance_report.png
-│
-└── scripts/
-    ├── install_arc_agent.sh            ← Script d'installation Azure Arc
-    ├── configure_linux_security.sh    ← Hardening SSH / Firewalld / SELinux
-    ├── kql_queries.md                  ← Toutes les requêtes KQL (Requêtes 1–8)
-    └── cleanup.sh                      ← Suppression des ressources Azure
-```
-
----
-
 ## 🔗 Ressources
 
 - [Documentation Azure Arc — Serveurs](https://learn.microsoft.com/azure/azure-arc/servers/overview)
@@ -1278,4 +1220,4 @@ sealert -a /var/log/audit/audit.log
 ---
 
 *Réalisé par **Serge TOGNON** — Administrateur Cloud Azure Certifié (AZ-104) | Candidat RHCSA*
-*LinkedIn : [linkedin.com/in/serge-tognon](https://www.linkedin.com/in/serge-tognon)*
+*LinkedIn : [linkedin.com/in/serge-tognon](www.linkedin.com/in/serge-tognon-a63443187)*

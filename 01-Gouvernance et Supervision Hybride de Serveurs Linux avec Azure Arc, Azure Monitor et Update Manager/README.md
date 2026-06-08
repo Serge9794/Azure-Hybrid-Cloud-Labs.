@@ -427,7 +427,9 @@ Ou depuis le portail : **Azure Arc → Machines → + Ajouter → Générer un s
 
 ```bash
 # Télécharger et installer le binaire de l'agent hybride
-curl -sL https://aka.ms/installazcmagent | sudo bash
+wget https://gbl.his.arc.azure.com/azcmagent-linux -O install_linux_azcmagent.sh
+# Exécuter l'installation
+sudo bash install_linux_azcmagent.sh
 ```
 
 > **📸 Capture 6b** — `screenshots/06b_arc_agent_install_vm1.png`

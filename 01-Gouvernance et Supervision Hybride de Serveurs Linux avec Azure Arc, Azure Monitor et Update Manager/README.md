@@ -427,27 +427,28 @@ sudo bash install_linux_azcmagent.sh
 ```bash
 # Connexion au plan de contrôle Azure Resource Manager
   sudo azcmagent connect \
-  --tenant-id "b3818c8a-2ac2-44a2-8e36-4ac319fbf2ed" \
-  --subscription-id "1c677bf6-bd7e-4e0f-8ee7-409c32dfb66b" \
+  --tenant-id "TENANT-ID" \
+  --subscription-id "SUBSCRIPTION-ID" \
   --resource-group "rg-finsecure-arc" \
   --location "francecentral" \
   --resource-name "admin-lab-local" \
   --cloud "AzureCloud" \
   --tags "Environment=Production,Project=Hybrid Governance,Owner=Serge TOGNON,HostRoleType=LinuxAdminServer"
 ```
+<img width="652" height="406" alt="6d" src="https://github.com/user-attachments/assets/5722c9ea-d99f-40e6-a3dd-5d46aa518fb7" />
 
-> **📸 Capture 6c** — `screenshots/06c_arc_connect_vm1.png`
-> Le message **"Successfully onboarded resource to Azure"** doit apparaître avec le nom `admin-lab-local`.
 
 ---
 
 ### Étape 3 — Installation sur server.lab.local
 
-```bash
+""bash
 # Télécharger et installer le binaire de l'agent hybride
 wget https://gbl.his.arc.azure.com/azcmagent-linux -O install_linux_azcmagent.sh
 # Exécuter l'installation
 sudo bash install_linux_azcmagent.sh
+
+<img width="651" height="196" alt="6e" src="https://github.com/user-attachments/assets/1e5652af-5c44-4536-a0ec-7aaa92ba91e5" />
 
 # Connecter le serveur à Azure Arc
 sudo azcmagent connect \
@@ -458,10 +459,9 @@ sudo azcmagent connect \
   --resource-name "server-lab-local" \
   --cloud "AzureCloud" \
   --tags "Environment=Production,Project=Hybrid Governance,Owner=Serge TOGNON,HostRoleType=LinuxApplicationServer"
-```
 
-> **📸 Capture 6d** — `screenshots/06d_arc_connect_vm2.png`
-> Le message **"Successfully onboarded resource to Azure"** doit apparaître avec le nom `server-lab-local`.
+<img width="668" height="265" alt="6f" src="https://github.com/user-attachments/assets/cc877a62-dd73-4307-8e03-43995a6aab89" />
+
 
 ---
 
@@ -472,19 +472,15 @@ sudo azcmagent connect \
 sudo azcmagent show
 
 # Vérifier les services
-systemctl status himds
+systemctl status himdsd
 systemctl status gcad
 ```
 
 Résultat attendu de `azcmagent show` :
 
-```
-Agent Status    : Connected
-Agent Version   : 1.x.x
-Resource Name   : admin-lab-local
-Resource Group  : rg-finsecure-arc
-Location        : francecentral
-```
+<img width="650" height="288" alt="6g" src="https://github.com/user-attachments/assets/cd80843d-584b-4f5e-a97e-95bbab5082f3" />
+
+<img width="631" height="158" alt="6g&#39;" src="https://github.com/user-attachments/assets/48a3cc8a-181a-4427-92bf-a8e909ba6e82" />
 
 ---
 
@@ -496,29 +492,18 @@ Location        : francecentral
 # Lister les machines Arc connectées
 az connectedmachine list \
   --resource-group rg-finsecure-arc \
+  --query "[].{Nom:name,Status:status,OS:osName,Version:osVersion, Region:location}" \
   --output table
 ```
 
-Résultat attendu :
+**Résultat attendu :**
+<img width="960" height="152" alt="7a" src="https://github.com/user-attachments/assets/b18d6dfe-e7a9-45fb-89b5-c16c93cfbd6b" />
 
-```
-Name              ResourceGroup      Status     OS      Location
-----------------  -----------------  ---------  ------  -------------
-admin-lab-local   rg-finsecure-arc   Connected  linux   francecentral
-server-lab-local  rg-finsecure-arc   Connected  linux   francecentral
-```
+<img width="778" height="304" alt="7b" src="https://github.com/user-attachments/assets/124a53b9-cf6f-4196-8e87-89295adf73e9" />
 
-> **📸 Capture 7a** — `screenshots/07a_arc_machines_connected.png`
-> Chemin portail : `Azure Arc → Machines`
-> Les deux machines doivent afficher le **point vert "Connecté"** avec la région `France Central`.
+<img width="914" height="305" alt="7c" src="https://github.com/user-attachments/assets/63d64f07-3b5e-4981-88a5-3be20718fc7a" />
 
-> **📸 Capture 7b** — `screenshots/07b_arc_machine_details.png`
-> Chemin portail : `Azure Arc → Machines → admin-lab-local → Vue d'ensemble`
-> Le panneau doit afficher : nom d'hôte, OS (RHEL 9.x), version de l'agent, adresse IP (192.168.10.1), et date de dernière connexion.
 
-> **📸 Capture 7c** — `screenshots/07c_arc_inventory.png`
-> Chemin portail : `Azure Arc → Machines → admin-lab-local → Extensions`
-> Cette capture sert de référence **"avant AMA"** — la liste des extensions peut être vide à cette étape.
 
 ---
 
@@ -538,7 +523,6 @@ az connectedmachine extension create \
   --resource-group rg-finsecure-arc \
   --type AzureMonitorLinuxAgent \
   --publisher Microsoft.Azure.Monitor \
-  --type-handler-version 1.0 \
   --location francecentral
 
 # Déploiement sur server-lab-local
@@ -548,7 +532,6 @@ az connectedmachine extension create \
   --resource-group rg-finsecure-arc \
   --type AzureMonitorLinuxAgent \
   --publisher Microsoft.Azure.Monitor \
-  --type-handler-version 1.0 \
   --location francecentral
 ```
 

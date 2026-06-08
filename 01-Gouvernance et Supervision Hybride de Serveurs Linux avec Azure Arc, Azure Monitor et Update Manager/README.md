@@ -406,17 +406,8 @@ az extension list --output table
 
 
 ### Étape 1 — Génération du script d'onboarding
-
-```bash
-az connectedmachine generate-install-script \
-  --resource-group "rg-finsecure-arc" \
-  --location "francecentral" \
-  --os-type "Linux" \
-  --authentication-type "service-principal" \
-  --output-file "./arc-install.sh"
-```
-
-Ou depuis le portail : **Azure Arc → Machines → + Ajouter → Générer un script**
+Utiliser le portail Azure pour créer un script qui automatise le téléchargement et l'installation de l'agent et établit la connexion avec Azure Arc.
+Depuis le portail : **Azure Arc → Machines → + Ajouter existant → Générer un script**
 
 <img width="845" height="401" alt="6a" src="https://github.com/user-attachments/assets/565698e1-a301-41ed-aab4-1fb69e198c77" />
 <img width="960" height="326" alt="6b" src="https://github.com/user-attachments/assets/7670b9aa-ec38-4d90-9b4f-3c064b5dc61d" />
@@ -431,17 +422,13 @@ wget https://gbl.his.arc.azure.com/azcmagent-linux -O install_linux_azcmagent.sh
 # Exécuter l'installation
 sudo bash install_linux_azcmagent.sh
 ```
-
-> **📸 Capture 6b** — `screenshots/06b_arc_agent_install_vm1.png`
-> Les dernières lignes du script doivent afficher `Latest version of azcmagent is installed` ou `Installation successful`.
+<img width="651" height="184" alt="6c" src="https://github.com/user-attachments/assets/d31ace9a-cacd-4a11-a803-71516a627665" />
 
 ```bash
 # Connexion au plan de contrôle Azure Resource Manager
-sudo azcmagent connect \
-  --service-principal-id "<ID_PRINCIPAL>" \
-  --service-principal-secret "<SECRET_PRINCIPAL>" \
-  --tenant-id "<TENANT_ID>" \
-  --subscription-id "<SUBSCRIPTION_ID>" \
+  sudo azcmagent connect \
+  --tenant-id "b3818c8a-2ac2-44a2-8e36-4ac319fbf2ed" \
+  --subscription-id "1c677bf6-bd7e-4e0f-8ee7-409c32dfb66b" \
   --resource-group "rg-finsecure-arc" \
   --location "francecentral" \
   --resource-name "admin-lab-local" \
@@ -457,13 +444,13 @@ sudo azcmagent connect \
 ### Étape 3 — Installation sur server.lab.local
 
 ```bash
-# Installer l'agent
-curl -sL https://aka.ms/installazcmagent | sudo bash
+# Télécharger et installer le binaire de l'agent hybride
+wget https://gbl.his.arc.azure.com/azcmagent-linux -O install_linux_azcmagent.sh
+# Exécuter l'installation
+sudo bash install_linux_azcmagent.sh
 
 # Connecter le serveur à Azure Arc
 sudo azcmagent connect \
-  --service-principal-id "<ID_PRINCIPAL>" \
-  --service-principal-secret "<SECRET_PRINCIPAL>" \
   --tenant-id "<TENANT_ID>" \
   --subscription-id "<SUBSCRIPTION_ID>" \
   --resource-group "rg-finsecure-arc" \

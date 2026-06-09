@@ -524,6 +524,7 @@ az connectedmachine extension create \
   --type AzureMonitorLinuxAgent \
   --publisher Microsoft.Azure.Monitor \
   --location francecentral
+  --no-wait
 
 # Déploiement sur server-lab-local
 az connectedmachine extension create \
@@ -533,22 +534,22 @@ az connectedmachine extension create \
   --type AzureMonitorLinuxAgent \
   --publisher Microsoft.Azure.Monitor \
   --location francecentral
+  --no-wait
 ```
+<img width="920" height="374" alt="8a" src="https://github.com/user-attachments/assets/0799963b-b363-4e5b-8407-97146cc5cd36" />
 
-> **📸 Capture 8a** — `screenshots/08a_ama_extension_install.png`
-> Chemin portail : `Azure Arc → Machines → admin-lab-local → Extensions → Ajouter`
-> La fiche de l'extension **"Azure Monitor Agent"** avec l'éditeur `Microsoft.Azure.Monitor` doit être visible.
+<img width="857" height="356" alt="8b" src="https://github.com/user-attachments/assets/fb9be511-c9b7-433d-9d64-0ed467fa5ee0" />
 
-> **📸 Capture 8b** — `screenshots/08b_ama_installed_both_vms.png`
-> Chemin portail : `Azure Arc → Machines → admin-lab-local → Extensions`
-> L'extension `AzureMonitorLinuxAgent` doit afficher le statut **"Succès"** ✅ avec son numéro de version.
+
+
+
 
 ---
 
 ### Vérification locale du service AMA
 
 ```bash
-# Vérifier le service sur chaque VM
+# Vérifier le service sur chaque VM(admin-lab-local et server-lab-local)
 sudo systemctl status azuremonitoragent
 
 # Consulter les logs de l'agent
@@ -557,11 +558,15 @@ journalctl -u azuremonitoragent -n 50
 # Vérifier les processus actifs
 ps aux | grep -i azure
 ```
+<img width="649" height="405" alt="8c" src="https://github.com/user-attachments/assets/d12a7a46-7f15-4f7c-b1e1-4c7e05fd5b0e" />
 
-> **📸 Capture 8c** — `screenshots/08c_ama_service_running.png`
-> La commande `systemctl status azuremonitoragent` doit afficher **`active (running)`** en vert, sans erreur dans les dernières lignes de journald.
+<img width="650" height="265" alt="8d" src="https://github.com/user-attachments/assets/e6b74da1-4b25-49a1-97d5-9b4193ce72dd" />
+
+
 
 ---
+
+
 
 ## 📐 Chapitre 9 — Data Collection Rules (DCR)
 
@@ -573,14 +578,14 @@ Les DCR définissent **quoi collecter** et **où envoyer** les données. Elles a
 
 | Compteur | Fréquence | Description |
 |---|---|---|
-| `Processor/% Processor Time` | 60s | Utilisation CPU |
-| `Memory/% Used Memory` | 60s | Utilisation RAM |
-| `Memory/% Available Memory` | 60s | RAM disponible |
-| `LogicalDisk/% Used Space` | 300s | Espace disque utilisé |
-| `LogicalDisk/Disk Read Bytes/sec` | 60s | Lectures disque |
-| `LogicalDisk/Disk Write Bytes/sec` | 60s | Écritures disque |
-| `Network/Total Bytes Received` | 60s | Trafic réseau entrant |
-| `Network/Total Bytes Transmitted` | 60s | Trafic réseau sortant |
+| `Processor/% Processor Time` | 60 s | Utilisation CPU |
+| `Memory/% Used Memory` | 60 s | Utilisation RAM |
+| `Memory/% Available Memory` | 60 s | RAM disponible |
+| `LogicalDisk/% Used Space` | 300 s | Espace disque utilisé |
+| `LogicalDisk/Disk Read Bytes/sec` | 60 s | Lectures disque |
+| `LogicalDisk/Disk Write Bytes/sec` | 60 s | Écritures disque |
+| `Network/Total Bytes Received` | 60 s | Trafic réseau entrant |
+| `Network/Total Bytes Transmitted` | 60 s | Trafic réseau sortant |
 
 ### Flux de logs Syslog (niveau minimum : Warning)
 
@@ -598,7 +603,7 @@ Les DCR définissent **quoi collecter** et **où envoyer** les données. Elles a
 
 ### Association de la DCR aux machines Arc
 
-```bash
+bash
 # Récupérer l'ID de la DCR
 DCR_ID=$(az monitor data-collection rule show \
   --name dcr-finsecure-linux \
@@ -616,20 +621,32 @@ az monitor data-collection rule association create \
   --name dcra-server-lab \
   --resource "/subscriptions/<sub-id>/resourceGroups/rg-finsecure-arc/providers/Microsoft.HybridCompute/machines/server-lab-local" \
   --data-collection-rule-id $DCR_ID
-```
 
-> **📸 Capture 9a** — `screenshots/09a_dcr_created.png`
-> Chemin portail : `Monitor → Data Collection Rules → dcr-finsecure-linux → Vue d'ensemble`
-> Les sources (Performance Counters + Syslog) et la destination `law-finsecure-prod` doivent être clairement indiquées.
+  **Etapes Portail Azure**
 
-> **📸 Capture 9b** — `screenshots/09b_dcr_performance_counters.png`
-> Les 8 compteurs de performance avec leurs fréquences d'échantillonnage doivent être visibles.
+**Méthode** : Depuis la DCR 
 
-> **📸 Capture 9c** — `screenshots/09c_dcr_syslog.png`
-> Les 7 facilities Syslog avec le niveau minimum `Warning` doivent être visibles.
+Azure Portal → recherche Data collection rules → dcr-finsecure-linux
+Resources (menu gauche)
++ Add → sélectionne les deux machines :
 
-> **📸 Capture 9d** — `screenshots/09d_dcr_associations.png`
-> Les deux machines `admin-lab-local` et `server-lab-local` doivent apparaître sous la DCR.
+admin-lab-local
+server-lab-local
+
+
+Save
+
+
+<img width="922" height="403" alt="9a" src="https://github.com/user-attachments/assets/3d9a8924-3ce3-4582-aa29-a0f26ff1b53b" />
+
+<img width="911" height="377" alt="9b" src="https://github.com/user-attachments/assets/d4b5267f-dc42-47e2-96ec-734ad0dbaecf" />
+
+<img width="901" height="372" alt="9c" src="https://github.com/user-attachments/assets/77674148-2283-45a5-bb04-a966ea7e2248" />
+
+<img width="847" height="368" alt="9d" src="https://github.com/user-attachments/assets/7f4ead1a-b2d4-4ef3-9371-442d0c5f1418" />
+
+
+<img width="920" height="401" alt="9e" src="https://github.com/user-attachments/assets/04ec9365-ff2b-4939-9bd5-9111480ea73b" />
 
 ---
 

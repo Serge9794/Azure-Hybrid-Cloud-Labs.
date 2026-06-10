@@ -484,6 +484,217 @@ Résultat attendu de `azcmagent show` :
 
 ---
 
+### 🔄 Déploiement à grande échelle — Service Principal & Ansible
+
+> 💡 **Contexte** : Le lab FinSecure SA repose sur 2 VMs locales onboardées
+> manuellement aux Étapes 2 et 3. Cette section documente l'approche
+> **Service Principal + Ansible** pour un déploiement à grande échelle,
+> applicable en contexte entreprise (50+ machines). Elle n'a pas été exécutée
+> dans ce lab mais constitue une compétence opérationnelle documentée en
+> prévision de scénarios réels.
+
+
+#### Pourquoi un Service Principal ?
+
+L'onboarding des Étapes 2 et 3 utilise une authentification **interactive** :
+`azcmagent connect` ouvre un navigateur pour valider l'identité de l'utilisateur.
+Cette approche est impossible à automatiser sur 50 VMs simultanément.
+
+Le **Service Principal** est une identité applicative Azure AD qui permet à
+`azcmagent connect` de s'authentifier **sans intervention humaine**, prérequis
+indispensable pour tout déploiement Ansible à grande échelle.
+
+---
+
+#### 6.1 — Créer le Service Principal d'onboarding
+
+Le rôle minimal requis est **Azure Connected Machine Onboarding** ,il ne donne
+aucun accès aux ressources Azure existantes.
+
+```bash
+az ad sp create-for-rbac \
+  --name "sp-arc-onboarding-finsecure" \
+  --role "Azure Connected Machine Onboarding" \
+  --scopes "/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-finsecure-arc"
+```
+
+**Résultat à conserver:**
+
+```json
+{
+  "appId":    "<CLIENT_ID>",
+  "password": "<CLIENT_SECRET>",
+  "tenant":   "<TENANT_ID>"
+}
+```
+
+Vérifier le rôle assigné :
+
+```bash
+az role assignment list \
+  --assignee "<CLIENT_ID>" \
+  --query "[].{Role:roleDefinitionName, Scope:scope}" \
+  --output table
+```
+
+Résultat attendu :
+
+```
+Role                                    Scope
+--------------------------------------  ------------------------------------------------
+Azure Connected Machine Onboarding      /subscriptions/.../rg-finsecure-arc
+```
+
+> ⚠️ **Sécurité RGPD/ISO 27001** : ne jamais committer `password` en clair dans Git.
+> Stocker dans Ansible Vault (voir section 6.3).
+
+---
+
+#### 6.2 — Inventaire Ansible
+
+Fichier `inventory/hosts.ini` :
+
+```ini
+[arc_servers]
+vm-01.lab.local
+vm-02.lab.local
+vm-03.lab.local
+# ... jusqu'à vm-50.lab.local
+
+[arc_servers:vars]
+ansible_user=arcadmin
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+```
+
+Tester la connectivité SSH sur toutes les VMs :
+
+```bash
+ansible arc_servers -i inventory/hosts.ini -m ping
+```
+
+Résultat attendu : toutes les VMs répondent **pong** en vert.
+
+---
+
+#### 6.3 — Chiffrer les secrets avec Ansible Vault
+
+```bash
+# Créer le fichier de secrets chiffré
+ansible-vault create group_vars/all/vault.yml
+```
+
+Contenu de `vault.yml` :
+
+```yaml
+vault_arc_client_id:       "<appId>"
+vault_arc_client_secret:   "<password>"
+vault_arc_tenant_id:       "<tenant-id>"
+vault_arc_subscription_id: "<subscription-id>"
+```
+
+---
+
+#### 6.4 — Playbook d'onboarding Arc
+
+Fichier `playbooks/arc_onboarding.yml` :
+
+```yaml
+---
+- name: Déploiement Azure Arc — FinSecure SA (50 VMs)
+  hosts: arc_servers
+  become: true
+  vars_files:
+    - group_vars/all/vault.yml
+  vars:
+    arc_resource_group: "rg-finsecure-arc"
+    arc_location:       "francecentral"
+    arc_cloud:          "AzureCloud"
+
+  tasks:
+
+    - name: Vérifier si azcmagent est déjà installé
+      command: azcmagent version
+      register: agent_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Télécharger le binaire azcmagent
+      get_url:
+        url:  "https://gbl.his.arc.azure.com/azcmagent-linux"
+        dest: /tmp/install_linux_azcmagent.sh
+        mode: '0440'
+      when: agent_check.rc != 0
+
+    - name: Installer azcmagent
+      shell: bash /tmp/install_linux_azcmagent.sh
+      when: agent_check.rc != 0
+
+    - name: Vérifier le statut de connexion actuel
+      command: azcmagent show
+      register: arc_status
+      ignore_errors: true
+      changed_when: false
+
+    - name: Connecter la VM à Azure Arc via Service Principal
+      command: >
+        azcmagent connect
+        --resource-group           "{{ arc_resource_group }}"
+        --tenant-id                "{{ vault_arc_tenant_id }}"
+        --location                 "{{ arc_location }}"
+        --subscription-id          "{{ vault_arc_subscription_id }}"
+        --service-principal-id     "{{ vault_arc_client_id }}"
+        --service-principal-secret "{{ vault_arc_client_secret }}"
+        --resource-name  "{{ inventory_hostname | regex_replace('\\..*', '') }}"
+        --cloud                    "{{ arc_cloud }}"
+        --tags "Environment=Production,Project=Hybrid Governance,Owner=Serge TOGNON"
+      when: "'Connected' not in arc_status.stdout"
+
+    - name: Vérifier le statut final
+      command: azcmagent show
+      register: final_status
+      changed_when: false
+
+    - name: Afficher le statut par VM
+      debug:
+        msg: "{{ inventory_hostname }} — {{ final_status.stdout_lines }}"
+```
+
+---
+
+#### 6.5 — Exécution
+
+```bash
+# Dry-run — simulation sans modification
+ansible-playbook -i inventory/hosts.ini playbooks/arc_onboarding.yml \
+  --ask-vault-pass \
+  --check
+
+# Exécution réelle , 10 VMs en parallèle
+ansible-playbook -i inventory/hosts.ini playbooks/arc_onboarding.yml \
+  --ask-vault-pass \
+  --forks 10
+```
+
+---
+
+#### 6.6 — Vérification post-déploiement
+
+```bash
+# Lister toutes les machines Arc enregistrées
+az connectedmachine list \
+  --resource-group rg-finsecure-arc \
+  --query "[].{Nom:name, Statut:status, OS:osName}" \
+  --output table
+
+# Compter les machines effectivement connectées
+az connectedmachine list \
+  --resource-group rg-finsecure-arc \
+  --query "[?status=='Connected'] | length(@)"
+```
+
+
+
+
 ## ✅ Chapitre 7 — Validation Azure Arc
 
 ### Vérification via Azure CLI
@@ -650,13 +861,16 @@ Save
 
 ---
 
+
+
 ## 🔍 Chapitre 10 — Analyse des journaux KQL
 
 ### Accès à Log Analytics
-
 Portail Azure → **`law-finsecure-prod` → Journaux**
 
-> ⏱️ **Important :** Attendre **15 à 30 minutes** après la configuration de la DCR avant d'exécuter les requêtes. Les premières données mettent quelques minutes à arriver dans le workspace.
+> ⏱️ **Important :** Attendre **15 à 30 minutes** après la configuration de la DCR
+> avant d'exécuter les requêtes. Les premières données mettent quelques minutes
+> à arriver dans le workspace.
 
 ---
 
@@ -674,8 +888,7 @@ Heartbeat
 | order by Computer asc
 ```
 
-> **📸 Capture 10a** — `screenshots/10a_kql_heartbeat.png`
-> Un tableau avec les **deux serveurs**, leur OS, version d'agent, dernière connexion et nombre de heartbeats doit apparaître.
+<img width="918" height="389" alt="10a" src="https://github.com/user-attachments/assets/7216292b-fa7b-45f8-b28a-15364950cee6" />
 
 ---
 
@@ -683,16 +896,17 @@ Heartbeat
 
 ```kql
 // Moyenne d'utilisation CPU par serveur sur les dernières 2h
-InsightsMetrics
+Perf
 | where TimeGenerated > ago(2h)
-| where Namespace == "Processor"
-| where Name == "utilization"
-| summarize AvgCPU = avg(Val) by bin(TimeGenerated, 5m), Computer
+| where ObjectName == "Processor"
+| where CounterName == "% Processor Time"
+| where InstanceName == "total"
+| summarize AvgCPU = avg(CounterValue) by bin(TimeGenerated, 5m), Computer
 | render timechart
 ```
 
-> **📸 Capture 10b** — `screenshots/10b_kql_cpu_chart.png`
-> Un graphique linéaire avec **deux courbes** (une par serveur) montrant l'évolution du % CPU sur 2 heures.
+<img width="881" height="407" alt="10b" src="https://github.com/user-attachments/assets/ea50de27-2508-46bb-9457-b60dbc83a99f" />
+
 
 ---
 
@@ -700,30 +914,33 @@ InsightsMetrics
 
 ```kql
 // Pourcentage de mémoire utilisée par serveur
-InsightsMetrics
+Perf
 | where TimeGenerated > ago(2h)
-| where Namespace == "Memory"
-| where Name == "utilization"
-| summarize AvgMem = avg(Val) by bin(TimeGenerated, 5m), Computer
+| where ObjectName == "Memory"
+| where CounterName == "% Used Memory"
+| summarize AvgMem = avg(CounterValue) by bin(TimeGenerated, 5m), Computer
 | render timechart
 ```
+
+<img width="886" height="396" alt="10c" src="https://github.com/user-attachments/assets/8f3b4a9f-1d58-4771-a593-b0ccd535e8a8" />
+
 
 ---
 
 ### Requête 4 — Journalisation des flux d'accès SSH
-
+//Détecter les tentatives de connexion SSH (réussies et échouées)
 ```kql
-// Détecter les tentatives de connexion SSH (réussies et échouées)
 Syslog
 | where TimeGenerated > ago(24h)
 | where Facility in ("auth", "authpriv")
 | where SyslogMessage contains "sshd"
-| project TimeGenerated, Computer, SyslogMessage
+| project TimeGenerated, Computer, Facility, SyslogMessage
 | order by TimeGenerated desc
 ```
 
-> **📸 Capture 10c** — `screenshots/10c_kql_ssh_logins.png`
-> Des événements `sshd` avec les messages `Accepted publickey`, `Failed password`, etc. doivent être visibles.
+> **📸 Capture 10d** — `screenshots/10d_kql_ssh_logins.png`
+> Des événements `sshd` avec les messages `Accepted publickey`,
+> `Failed password`, etc. doivent être visibles.
 
 ---
 
@@ -733,12 +950,16 @@ Syslog
 // Compter les échecs de connexion par IP source
 Syslog
 | where TimeGenerated > ago(24h)
-| where SyslogMessage contains "Failed password"
-| extend SourceIP = extract(@"from (\d+\.\d+\.\d+\.\d+)", 1, SyslogMessage)
-| summarize FailedAttempts = count() by SourceIP, Computer
-| where FailedAttempts > 3
+| where Facility in ("auth", "authpriv")
+| where SyslogMessage contains "Failed"
+    or SyslogMessage contains "Invalid"
+    or SyslogMessage contains "error"
+| summarize FailedAttempts = count() by Computer, Facility
 | order by FailedAttempts desc
 ```
+
+> **📸 Capture 10e** — `screenshots/10e_kql_failed_auth.png`
+> Tableau des IPs avec tentatives d'authentification échouées > 3.
 
 ---
 
@@ -752,21 +973,26 @@ Syslog
 | project TimeGenerated, Computer, SyslogMessage
 | order by TimeGenerated desc
 ```
+<img width="918" height="371" alt="10f" src="https://github.com/user-attachments/assets/cf9d397f-5be9-4ef3-8e75-9701d3750486" />
+
+
 
 ---
 
-### Requête 7 — Utilisation disque
+### Requête 7 — Activité disque I/O
 
 ```kql
-// Espace disque utilisé par partition et serveur
-InsightsMetrics
-| where TimeGenerated > ago(1h)
-| where Namespace == "LogicalDisk"
-| where Name == "FreeSpacePercentage"
-| extend UsedPercent = 100 - Val
-| summarize AvgUsed = avg(UsedPercent) by Computer, tostring(Tags)
-| order by AvgUsed desc
+// Débit disque lecture/écriture par serveur
+Perf
+| where TimeGenerated > ago(2h)
+| where ObjectName == "Logical Disk"
+| where CounterName in ("Disk Read Bytes/sec", "Disk Write Bytes/sec")
+| summarize AvgBytes = avg(CounterValue) by bin(TimeGenerated, 5m), Computer, CounterName
+| render timechart
 ```
+
+<img width="909" height="410" alt="10g" src="https://github.com/user-attachments/assets/67012cb3-98fc-477d-9c27-9e9dde93482f" />
+
 
 ---
 
@@ -776,101 +1002,254 @@ InsightsMetrics
 // Auditer les commandes exécutées avec sudo
 Syslog
 | where TimeGenerated > ago(7d)
-| where SyslogMessage has "sudo" and SyslogMessage has "COMMAND"
+| where Facility == "authpriv"
+| where SyslogMessage contains "sudo"
 | extend
-    User = extract(@"(\w+) : TTY", 1, SyslogMessage),
+    User    = extract(@"(\w+) : TTY", 1, SyslogMessage),
     Command = extract(@"COMMAND=(.+)$", 1, SyslogMessage)
+| where isnotempty(Command)
 | project TimeGenerated, Computer, User, Command
 | order by TimeGenerated desc
 ```
 
-> **📸 Capture 10d** — `screenshots/10d_kql_sudo_audit.png`
-> Un tableau avec les colonnes `TimeGenerated`, `Computer`, `User`, `Command` doit afficher les commandes sudo exécutées pendant le lab.
+> **📸 Capture 10h** — `screenshots/10h_kql_sudo_audit.png`
+> Tableau avec les colonnes `TimeGenerated`, `Computer`, `User`, `Command`
+> affichant les commandes sudo exécutées pendant le lab.
 
----
 
 ## 🚨 Chapitre 11 — Alertes Azure
-
-### Étape 1 — Déploiement du Groupe d'actions
-
-> Le canal de notification est provisionné **avant** les règles d'évaluation pour respecter les dépendances de déploiement.
-
-```bash
+##  Étape 1 — Déploiement du Groupe d'actions
+Un groupe d'actions est le mécanisme Azure qui définit qui prévenir et comment lorsqu'une alerte se déclenche. Il centralise les canaux de notification (email, SMS, webhook, ticket ITSM) et peut être partagé entre plusieurs règles d'alerte , modifier le groupe suffit pour mettre à jour toutes les alertes qui l'utilisent.
+Dans le contexte FinSecure SA, ag-finsecure-ops est le groupe qui reçoit toutes les alertes d'infrastructure hybride : il est créé avant les règles d'alerte car celles-ci en dépendent au moment du déploiement.
+bash
 az monitor action-group create \
   --name "ag-finsecure-ops" \
   --resource-group "rg-finsecure-arc" \
   --short-name "FinSecureOps" \
   --action email sysadmin-alerts arc-alerts@finsecure-sa.com
-```
 
-> **📸 Capture 11b** — `screenshots/11b_action_group.png`
-> Chemin portail : `Monitor → Groupes d'actions → ag-finsecure-ops`
-> L'action Email doit être configurée avec l'adresse destinataire visible et le statut activé.
+
+<img width="920" height="395" alt="11a" src="https://github.com/user-attachments/assets/937f6ee7-a984-4bae-9327-8499e462b971" />
+
+
+
+---
+### Étape 2 — Création des règles d'alerte
+
+Une **règle d'alerte** surveille en continu une métrique ou une requête KQL
+et déclenche une notification vers le groupe d'actions `ag-finsecure-ops`
+dès qu'un seuil critique est franchi.
+
+> **Chemin portail :** Surveillance → Alertes → + Créer → Règle d'alerte
 
 ---
 
-### Étape 2 — Création des alertes de seuils critiques
+#### Alerte 1 — CPU > 80%
 
-**Alerte 1 — CPU > 80%**
+**Pourquoi cette alerte ?**
+Le CPU est la première ressource à saturer lors d'une surcharge applicative.
+Dans un contexte financier (FinSecure SA), un CPU saturé peut impacter les
+traitements de transactions, les jobs batch ou les APIs critiques. Le seuil
+de 80% laisse une marge d'intervention avant la saturation totale à 100%.
 
-```bash
-az monitor metrics alert create \
-  --name "alert-cpu-finsecure" \
-  --resource-group rg-finsecure-arc \
-  --description "CPU > 80% sur les serveurs FinSecure SA" \
-  --condition "avg Percentage CPU > 80" \
-  --window-size 5m \
-  --evaluation-frequency 1m \
-  --severity 2 \
-  --auto-mitigate true \
-  --action "ag-finsecure-ops"
-```
+**Comment ça fonctionne ?**
+La requête interroge la table `Perf` toutes les **1 minute** sur une fenêtre
+de **5 minutes**. Elle calcule la moyenne CPU par serveur. Si cette moyenne
+dépasse 80%, la requête retourne au moins 1 résultat → l'alerte se déclenche
+et envoie un email via `ag-finsecure-ops`.
 
-**Alerte 2 — Serveur indisponible (Heartbeat)**
+**Pourquoi seuil = 0 ?**
+La requête KQL filtre déjà `where AvgCPU > 80` — elle ne retourne des lignes
+que si le seuil est dépassé. "Résultats > 0" signifie donc "la condition est
+vraie sur au moins un serveur".
+
+| Champ | Valeur |
+|-------|--------|
+| Scope | `law-finsecure-prod` |
+| Type de signal | Recherche de journaux personnalisée |
+| Opérateur | Supérieur à |
+| Valeur seuil | `0` |
+| Granularité d'agrégation | `5 minutes` |
+| Fréquence d'évaluation | `1 minute` |
+| Groupe d'actions | `ag-finsecure-ops` |
+| Nom de la règle | `alert-cpu-finsecure` |
+| Description | `CPU > 80% sur les serveurs FinSecure SA` |
+| Sévérité | `2 - Avertissement` |
+| Région | `France Central` |
 
 ```kql
-// Signal Log Analytics — Requête personnalisée
-// Seuil : Résultats > 0 → le serveur ne répond plus
+Perf
+| where ObjectName == "Processor"
+| where CounterName == "% Processor Time"
+| where InstanceName == "total"
+| summarize AvgCPU = avg(CounterValue) by Computer
+| where AvgCPU > 80
+```
+
+> **📸 Capture 11b** — `screenshots/11b_alert_cpu.png`
+> Chemin portail : `Surveillance → Alertes → Règles d'alerte → alert-cpu-finsecure`
+> La règle doit afficher la requête KQL, le seuil **> 0** et le statut **Activé**.
+
+---
+
+#### Alerte 2 — Serveur indisponible (Heartbeat)
+
+**Pourquoi cette alerte ?**
+C'est l'alerte la plus critique du lab. Le heartbeat est le "pouls" de la VM —
+Azure Monitor le reçoit toutes les minutes. Une absence depuis 5 minutes indique
+que le serveur est éteint, que le réseau est coupé, ou que l'agent Arc a planté.
+Dans un environnement financier, une indisponibilité non détectée peut avoir des
+conséquences graves sur la continuité de service — alignement direct avec les
+exigences **PCI-DSS** et **ISO 27001**.
+
+**Comment ça fonctionne ?**
+La requête cherche les serveurs dont le dernier heartbeat date de plus de
+5 minutes. Si elle retourne des résultats → un ou plusieurs serveurs sont
+silencieux → alerte **Critique** déclenchée immédiatement.
+
+**Pourquoi sévérité 1 et pas 2 ?**
+Une indisponibilité serveur est plus grave qu'une surcharge CPU — le serveur
+est complètement inaccessible, pas juste lent.
+
+| Champ | Valeur |
+|-------|--------|
+| Scope | `law-finsecure-prod` |
+| Type de signal | Recherche de journaux personnalisée |
+| Opérateur | Supérieur à |
+| Valeur seuil | `0` |
+| Granularité d'agrégation | `5 minutes` |
+| Fréquence d'évaluation | `1 minute` |
+| Groupe d'actions | `ag-finsecure-ops` |
+| Nom de la règle | `alert-heartbeat-finsecure` |
+| Description | `Serveur indisponible depuis 5 min` |
+| Sévérité | `1 - Critique` |
+| Région | `France Central` |
+
+```kql
 Heartbeat
 | where TimeGenerated > ago(5m)
 | summarize LastHeartbeat = max(TimeGenerated) by Computer
 | where LastHeartbeat < ago(5m)
 ```
 
-**Alerte 3 — Espace disque faible (< 20% libre)**
+> **📸 Capture 11c** — `screenshots/11c_alert_heartbeat.png`
+> Chemin portail : `Surveillance → Alertes → Règles d'alerte → alert-heartbeat-finsecure`
+> La règle doit afficher la sévérité **1 - Critique** et le statut **Activé**.
+
+---
+
+#### Alerte 3 — Espace disque < 20%
+
+**Pourquoi cette alerte ?**
+Un disque plein est une panne silencieuse et dévastatrice — les logs s'arrêtent
+d'écrire, les bases de données corrompent leurs fichiers, les applications
+crashent sans message d'erreur clair. Le seuil de 20% est le standard en
+production pour anticiper le problème avant qu'il devienne critique.
+
+**Comment ça fonctionne ?**
+La requête surveille le compteur `% Free Space` sur toutes les partitions
+individuelles. Si une partition passe sous 20% d'espace libre → alerte
+déclenchée avec le nom du serveur et de la partition concernés.
+
+**Pourquoi `InstanceName != "total"` ?**
+`total` est une valeur agrégée artificielle. Surveiller les partitions
+individuelles (`/`, `/var`, `/home`) est plus précis et actionnable qu'une
+moyenne globale qui peut masquer une partition saturée.
+
+| Champ | Valeur |
+|-------|--------|
+| Scope | `law-finsecure-prod` |
+| Type de signal | Recherche de journaux personnalisée |
+| Opérateur | Supérieur à |
+| Valeur seuil | `0` |
+| Granularité d'agrégation | `5 minutes` |
+| Fréquence d'évaluation | `5 minutes` |
+| Groupe d'actions | `ag-finsecure-ops` |
+| Nom de la règle | `alert-disk-finsecure` |
+| Description | `Espace disque libre < 20% sur les serveurs FinSecure SA` |
+| Sévérité | `2 - Avertissement` |
+| Région | `France Central` |
 
 ```kql
-InsightsMetrics
-| where Namespace == "LogicalDisk"
-| where Name == "FreeSpacePercentage"
-| where Val < 20
-| summarize count() by Computer
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Logical Disk"
+| where CounterName == "% Free Space"
+| where InstanceName != "total"
+| summarize AvgFree = avg(CounterValue) by Computer, InstanceName
+| where AvgFree < 20
 ```
 
-**Alerte 4 — Mémoire > 85%**
+> **📸 Capture 11d** — `screenshots/11d_alert_disk.png`
+> Chemin portail : `Surveillance → Alertes → Règles d'alerte → alert-disk-finsecure`
+> La règle doit afficher la requête KQL et le statut **Activé**.
+
+---
+
+#### Alerte 4 — Mémoire > 85%
+
+**Pourquoi cette alerte ?**
+La saturation mémoire provoque du swap intensif (écriture sur disque à la
+place de la RAM), ce qui dégrade drastiquement les performances. À 85%, le
+système commence à swapper activement — le serveur est encore fonctionnel
+mais ses performances chutent. C'est le moment d'intervenir avant d'atteindre
+100% et le crash.
+
+**Comment ça fonctionne ?**
+La requête calcule la moyenne de `% Used Memory` sur 15 minutes par serveur.
+Une fenêtre de 15 minutes évite les faux positifs liés aux pics mémoire courts
+et normaux lors du démarrage de processus.
+
+**Pourquoi 15 minutes et pas 5 ?**
+La mémoire est moins volatile que le CPU — un pic CPU de 2 minutes peut être
+normal (compilation, batch), mais une mémoire > 85% sur 15 minutes consécutives
+est un signal réel de problème structurel.
+
+| Champ | Valeur |
+|-------|--------|
+| Scope | `law-finsecure-prod` |
+| Type de signal | Recherche de journaux personnalisée |
+| Opérateur | Supérieur à |
+| Valeur seuil | `0` |
+| Granularité d'agrégation | `15 minutes` |
+| Fréquence d'évaluation | `5 minutes` |
+| Groupe d'actions | `ag-finsecure-ops` |
+| Nom de la règle | `alert-memory-finsecure` |
+| Description | `Mémoire > 85% utilisée sur les serveurs FinSecure SA` |
+| Sévérité | `2 - Avertissement` |
+| Région | `France Central` |
 
 ```kql
-InsightsMetrics
-| where Namespace == "Memory"
-| where Name == "utilization"
-| where Val > 85
-| summarize AvgMem = avg(Val) by Computer
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+| where CounterName == "% Used Memory"
+| summarize AvgMem = avg(CounterValue) by Computer
+| where AvgMem > 85
 ```
 
-> **📸 Capture 11a** — `screenshots/11a_alert_cpu_created.png`
-> Chemin portail : `Monitor → Alertes → Règles d'alerte`
-> Les 4 règles d'alerte doivent être listées avec leur **sévérité** et leur statut **"Activé"**.
+> **📸 Capture 11e** — `screenshots/11e_alert_memory.png`
+> Chemin portail : `Surveillance → Alertes → Règles d'alerte → alert-memory-finsecure`
+> La règle doit afficher la requête KQL et le statut **Activé**.
+
+---
+
+> **📸 Capture 11a** — `screenshots/11a_alert_rules_list.png`
+> Chemin portail : `Surveillance → Alertes → Règles d'alerte`
+> Les **4 règles** listées avec leur sévérité et statut **Activé**.
+
+---
 
 ### Bonnes pratiques d'alerting
 
 | Bonne pratique | Détail |
-|---|---|
+|----------------|--------|
 | Seuils progressifs | Warning à 70%, Critical à 85% |
 | Fenêtre d'évaluation | 5 min minimum pour éviter les faux positifs |
 | Auto-résolution | Activer `auto-mitigate` pour clore automatiquement |
-| Groupement d'alertes | Regrouper les alertes similaires dans le même groupe d'actions |
+| Groupement d'alertes | Un seul groupe d'actions `ag-finsecure-ops` pour toutes les règles |
+| Requêtes basées sur `Perf` | Adapté à une DCR standard sans VM Insights |
 
----
 
 ## 🔄 Chapitre 12 — Azure Update Manager
 

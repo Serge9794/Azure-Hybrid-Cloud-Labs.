@@ -2,7 +2,7 @@
 ## Azure Arc · Azure Monitor · Update Manager
 
 > **Auteur :** Serge TOGNON — Administrateur Cloud Azure Certifié (AZ-104) | Candidat RHCSA
-> [![LinkedIn](https://img.shields.io/badge/LinkedIn-Serge_TOGNON-0077B5?logo=linkedin&logoColor=white)](www.linkedin.com/in/serge-tognon-a63443187)
+> [![LinkedIn](https://img.shields.io/badge/LinkedIn-Serge_TOGNON-0077B5?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/serge-tognon-a63443187)
 > [![AZ-104](https://img.shields.io/badge/Microsoft-AZ--104_Certified-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/certifications/azure-administrator/)
 > [![RHCSA](https://img.shields.io/badge/Red_Hat-Candidat_RHCSA-EE0000?logo=redhat&logoColor=white)](https://www.redhat.com/en/services/certification/rhcsa)
 
@@ -27,7 +27,7 @@
 15. [Audit de conformité](#-chapitre-15--audit-de-conformité)
 16. [Dépannage](#-chapitre-16--dépannage)
 17. [Validation finale](#-chapitre-17--validation-finale)
-18. [Architecture cible Production](#-Chapitre-18-Architecture-cible-Production)                
+18. [Architecture cible Production](#-chapitre-18--architecture-cible-production)
 19. [Compétences démontrées](#-compétences-démontrées)
 
 ---
@@ -38,7 +38,7 @@
 
 **FinSecure SA** est une société de services financiers basée à Cotonou, opérant dans l'espace UEMOA. Elle gère des données sensibles hautement soumises aux réglementations **RGPD**, **ISO 27001** et **PCI-DSS**.
 
-La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Linux hébergés dans un datacenter local. Face à la complexification de l'infrastructure et aux exigences de conformité croissantes, le DSI a décidé de **moderniser l'administration et d'unifier la gouvernance sans migration immédiate vers le cloud public** une approche hybride via **Azure Arc**.
+La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Linux hébergés dans un datacenter local. Face à la complexification de l'infrastructure et aux exigences de conformité croissantes, la DSI a décidé de **moderniser l'administration et d'unifier la gouvernance sans migration immédiate vers le cloud public** — approche hybride via **Azure Arc**.
 
 ### Problématiques résolues
 
@@ -51,7 +51,9 @@ La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Lin
 | Aucun inventaire centralisé | Inventaire automatique et dynamique via le plan de contrôle Azure |
 | Conformité impossible à auditer | Tableaux de bord unifiés et rapports de gouvernance Azure |
 
-### Architecture du projet (architecture actuelle utilise les endpoints publics sécurisés (HTTPS 443))
+### Architecture du projet
+
+> ⚠️ **Note** : L'architecture actuelle utilise les endpoints publics sécurisés (HTTPS 443) en environnement de test. Voir [Chapitre 18](#-chapitre-18--architecture-cible-production) pour l'évolution vers une architecture zéro exposition publique (Arc Private Link + AMPLS).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -62,42 +64,38 @@ La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Lin
 │  │                                                                   │    │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │    │
 │  │  │  Azure Arc   │  │Log Analytics │  │   Azure Monitor      │  │    │
-│  │  │  Connected   │  │  Workspace   │  │   + DCR              │  │    │
-│  │  │  Machines    │  │law-finsecure │  │   + Alertes          │  │    │
+│  │  │  Connected   │  │  Workspace   │  │   + DCR + Alertes    │  │    │
+│  │  │  Machines    │  │law-finsecure │  │                      │  │    │
 │  │  └──────┬───────┘  └──────┬───────┘  └──────────────────────┘  │    │
 │  │         │                  │                                      │    │
-│  │  ┌──────▼───────────────────▼──────────────────────────────┐    │    │
+│  │  ┌──────▼──────────────────▼───────────────────────────────┐    │    │
 │  │  │              Update Manager + Dashboard                   │    │    │
-│  │  └────────────────────────────────────────────────────────┘    │    │
+│  │  └─────────────────────────────────────────────────────────┘    │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
-│                          ▲                ▲                               │
-│                     HTTPS 443        HTTPS 443                           │
-│                     Arc Agent        AMA Agent                           │
-└──────────────────────────┼────────────────┼──────────────────────────────┘
-                           │                │
-                 ┌─────────▼────────────────▼──────────┐
-                 │       DATACENTER LOCAL               │
-                 │       FinSecure SA  Cotonou         │
-                 │                                      │
-                 │  ┌─────────────────────────────┐    │
-                 │  │  VM1 : admin.lab.local        │    │
-                 │  │  IP  : 192.168.10.1           │    │
-                 │  │  OS  : RHEL 9                 │    │
-                 │  │  Rôle: Bastion SSH / Admin    │    │
-                 │  │  Agent Arc  ✅                │    │
-                 │  │  Agent AMA  ✅                │    │
-                 │  └─────────────────────────────┘    │
-                 │              │  SSH :22              │
-                 │              ▼                       │
-                 │  ┌─────────────────────────────┐    │
-                 │  │  VM2 : server.lab.local       │    │
-                 │  │  IP  : 192.168.10.2           │    │
-                 │  │  OS  : RHEL 9                 │    │
-                 │  │  Rôle: Serveur métier          │    │
-                 │  │  Agent Arc  ✅                │    │
-                 │  │  Agent AMA  ✅                │    │
-                 │  └─────────────────────────────┘    │
-                 └──────────────────────────────────────┘
+│                     ▲                        ▲                            │
+│                HTTPS 443                HTTPS 443                        │
+│                Arc Agent                AMA Agent                        │
+└─────────────────────┼────────────────────────┼──────────────────────────┘
+                      │                        │
+            ┌─────────▼────────────────────────▼──────────┐
+            │           DATACENTER LOCAL                    │
+            │           FinSecure SA — Cotonou             │
+            │                                              │
+            │  ┌───────────────────────────────────────┐  │
+            │  │  VM1 : admin.lab.local                 │  │
+            │  │  IP  : 192.168.10.1  |  OS : RHEL 9   │  │
+            │  │  Rôle : Bastion SSH / Admin            │  │
+            │  │  Agent Arc ✅  |  Agent AMA ✅         │  │
+            │  └───────────────────────────────────────┘  │
+            │                   │ SSH :22                  │
+            │                   ▼                          │
+            │  ┌───────────────────────────────────────┐  │
+            │  │  VM2 : server.lab.local                │  │
+            │  │  IP  : 192.168.10.2  |  OS : RHEL 9   │  │
+            │  │  Rôle : Serveur métier                 │  │
+            │  │  Agent Arc ✅  |  Agent AMA ✅         │  │
+            │  └───────────────────────────────────────┘  │
+            └──────────────────────────────────────────────┘
 ```
 
 ### Flux réseau
@@ -115,8 +113,8 @@ La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Lin
 |---|---|
 | Hyperviseur | VirtualBox 7.2.8 |
 | OS Invités | Red Hat Enterprise Linux 9 (RHEL 9) |
-| VM Admin | `admin.lab.local` IP : 192.168.10.1 |
-| VM Serveur | `server.lab.local`  IP : 192.168.10.2 |
+| VM Admin | `admin.lab.local` — IP : 192.168.10.1 |
+| VM Serveur | `server.lab.local` — IP : 192.168.10.2 |
 | Région Azure | France Central (`francecentral`) |
 | Resource Group | `rg-finsecure-arc` |
 
@@ -125,8 +123,6 @@ La Direction des Systèmes d'Information (DSI) administre plusieurs serveurs Lin
 ## 🖥️ Chapitre 2 — Installation des VM RHEL 9
 
 ### Configuration VirtualBox
-
-Créer deux machines virtuelles avec les paramètres suivants :
 
 | Paramètre | VM1 — admin.lab.local | VM2 — server.lab.local |
 |---|---|---|
@@ -155,8 +151,8 @@ sudo nmcli con mod "enp0s3" \
 
 sudo nmcli con up "enp0s3"
 ```
-<img width="650" height="311" alt="2a" src="https://github.com/user-attachments/assets/80d3a62f-d367-4dd3-b400-dbbc0a3e5377" />
 
+<img width="650" height="311" alt="2a" src="https://github.com/user-attachments/assets/80d3a62f-d367-4dd3-b400-dbbc0a3e5377" />
 
 ---
 
@@ -182,13 +178,11 @@ sudo nmcli con up "enp0s3"
 
 <img width="656" height="404" alt="2b" src="https://github.com/user-attachments/assets/cbf259c5-8905-4947-8c30-3f37ddbd4006" />
 
-
 ---
 
 ### Configuration des hostnames et DNS local
 
 ```bash
-# Appliquer le FQDN sur chaque VM
 # Sur VM1 :
 sudo hostnamectl set-hostname admin.lab.local
 
@@ -201,10 +195,12 @@ sudo tee -a /etc/hosts << EOF
 192.168.10.2    server.lab.local   server
 EOF
 ```
-<img width="662" height="193" alt="2a&#39;" src="https://github.com/user-attachments/assets/a569b152-3a1e-4ad2-8b4d-4dfe9b804809" />
-<img width="692" height="197" alt="2b&#39;" src="https://github.com/user-attachments/assets/0939e3c1-d790-4752-883b-953e735a1fad" />
 
---
+<img width="662" height="193" alt="2a'" src="https://github.com/user-attachments/assets/a569b152-3a1e-4ad2-8b4d-4dfe9b804809" />
+<img width="692" height="197" alt="2b'" src="https://github.com/user-attachments/assets/0939e3c1-d790-4752-883b-953e735a1fad" />
+
+---
+
 ### Vérifications de connectivité
 
 ```bash
@@ -215,6 +211,7 @@ ping -c 4 server.lab.local    # depuis admin.lab.local
 ping -c 4 8.8.8.8
 curl -sI https://management.azure.com/ | head -n 5
 ```
+
 <img width="688" height="401" alt="2c" src="https://github.com/user-attachments/assets/e5e12bdf-08ea-4e3e-a46f-fa62070f8c97" />
 
 ---
@@ -243,9 +240,11 @@ sudo chmod 440 /etc/sudoers.d/arcadmin
 # Valider la syntaxe sudoers
 sudo visudo -c
 ```
-<img width="645" height="324" alt="2d" src="https://github.com/user-attachments/assets/328b72bb-cf88-4bb2-956e-e2c19be7b4b2" />
-<img width="641" height="295" alt="2d&#39;" src="https://github.com/user-attachments/assets/3ded7433-16a2-488f-beda-33358af22fcb" />
 
+<img width="645" height="324" alt="2d" src="https://github.com/user-attachments/assets/328b72bb-cf88-4bb2-956e-e2c19be7b4b2" />
+<img width="641" height="295" alt="2d'" src="https://github.com/user-attachments/assets/3ded7433-16a2-488f-beda-33358af22fcb" />
+
+---
 
 ### Authentification SSH par clé (depuis arcadmin sur VM1)
 
@@ -256,8 +255,8 @@ ssh-keygen -t ed25519 -C "Arc_projet@Finsecure-sa" -f ~/.ssh/id_arc -N ""
 # 2. Copier la clé publique vers le serveur métier
 ssh-copy-id -i ~/.ssh/id_arc.pub arcadmin@192.168.10.2
 ```
-<img width="650" height="321" alt="3-c" src="https://github.com/user-attachments/assets/66b629cb-d157-4362-a747-3e8eb634f736" />
 
+<img width="650" height="321" alt="3-c" src="https://github.com/user-attachments/assets/66b629cb-d157-4362-a747-3e8eb634f736" />
 
 ---
 
@@ -289,38 +288,39 @@ EOF
 sudo sshd -t && sudo systemctl restart sshd
 ```
 
+---
+
 ### Configuration Firewalld
 
+#### Sur admin.lab.local
 
-# Restreindre les flux entrants au seul trafic SSH légitime (sur les DEUX VMs)
-## Sur admin.lab.local
+```bash
 # Supprimer la règle SSH générique
 sudo firewall-cmd --permanent --remove-service=ssh
 
-# Autoriser SSH uniquement depuis server (192.168.10.2)
-# Restreindre SSH au strict nécessaire , principe du moindre privilège 
+# Restreindre SSH au strict nécessaire — principe du moindre privilège (PCI-DSS req. 7)
 # /32 = adresse hôte unique : seule la VM partenaire est autorisée, aucune autre machine
 # du réseau 192.168.10.0/24 ne peut initier une connexion SSH, même en cas de compromission
 sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.10.2/32" service name="ssh" accept'
 
 # Autoriser HTTPS sortant (Azure Arc + AMA)
 sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" destination address="0.0.0.0/0" port port="443" protocol="tcp" accept'
+
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all
+```
 
 <img width="956" height="459" alt="3a" src="https://github.com/user-attachments/assets/d63ee253-c043-4496-be87-cd929b796181" />
 
+#### Sur server.lab.local
 
-## Sur server.lab.local
-
+```bash
 # Supprimer la règle SSH générique
 sudo firewall-cmd --permanent --remove-service=ssh
 
-# Autoriser SSH uniquement depuis admin (192.168.10.1)
-#  seul le bastion admin (192.168.10.1) peut SSH
+# Seul le bastion admin (192.168.10.1) peut SSH
 # /32 garantit qu'aucune autre VM future ajoutée au réseau n'hérite automatiquement
 # d'un accès SSH non désiré vers le serveur métier
-
 sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.10.1/32" service name="ssh" accept'
 
 # Autoriser HTTPS sortant (Azure Arc + AMA)
@@ -328,24 +328,25 @@ sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" destination ad
 
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all
+```
 
+<img width="679" height="416" alt="3a'" src="https://github.com/user-attachments/assets/bdd5f1f4-944e-4a11-984f-baaf3131ccfe" />
 
-<img width="679" height="416" alt="3a&#39;" src="https://github.com/user-attachments/assets/bdd5f1f4-944e-4a11-984f-baaf3131ccfe" />
-
-
----
-> 💡 **Règle adaptée au contexte** : Ce lab utilise `/32` (adresse hôte
-> unique) car seules 2 VMs aux IPs fixes communiquent entre elles.
-> Dans un déploiement Ansible à grande échelle ,
-> la règle `/24` est justifiée par la nécessité du nœud de contrôle
-> d'atteindre toutes les VMs cibles, compensée par l'authentification
-> par clé Ed25519 et l'audit Syslog.
-> *sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.10.0/24" service name="ssh" accept'*
+> 💡 **Règle adaptée au contexte** : Ce lab utilise `/32` (adresse hôte unique) car seules 2 VMs
+> aux IPs fixes communiquent entre elles. Dans un déploiement Ansible à grande échelle,
+> la règle `/24` est justifiée par la nécessité du nœud de contrôle d'atteindre toutes les VMs
+> cibles, compensée par l'authentification par clé Ed25519 et l'audit Syslog.
+>
+> ```bash
+> sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.10.0/24" service name="ssh" accept'
+> ```
 
 ---
 
 ### Durcissement SELinux (Mandatory Access Control)
- **Sur les deux VMs**
+
+**Sur les deux VMs :**
+
 ```bash
 # Activer immédiatement le mode Enforcing
 sudo setenforce 1
@@ -359,9 +360,9 @@ sudo sed -i '/^SELINUX=/c\SELINUX=enforcing' /etc/selinux/config
 # Vérifier le statut
 sestatus
 ```
-<img width="645" height="263" alt="3b" src="https://github.com/user-attachments/assets/0df30927-d198-4f6a-8415-77f0933a6b57" />
 
-<img width="642" height="337" alt="3b&#39;" src="https://github.com/user-attachments/assets/b01c5496-2be6-4ba0-bc56-a3388ec82a83" />
+<img width="645" height="263" alt="3b" src="https://github.com/user-attachments/assets/0df30927-d198-4f6a-8415-77f0933a6b57" />
+<img width="642" height="337" alt="3b'" src="https://github.com/user-attachments/assets/b01c5496-2be6-4ba0-bc56-a3388ec82a83" />
 
 ---
 
@@ -393,9 +394,9 @@ az group create \
 # Vérification
 az group show --name rg-finsecure-arc --output table
 ```
-<img width="949" height="82" alt="4a" src="https://github.com/user-attachments/assets/bd4f6891-9761-411d-970a-bc3e5f58f897" />
-<img width="923" height="415" alt="4a&#39;" src="https://github.com/user-attachments/assets/3abad903-af63-4fb4-90c1-5a3add9e3dce" />
 
+<img width="949" height="82" alt="4a" src="https://github.com/user-attachments/assets/bd4f6891-9761-411d-970a-bc3e5f58f897" />
+<img width="923" height="415" alt="4a'" src="https://github.com/user-attachments/assets/3abad903-af63-4fb4-90c1-5a3add9e3dce" />
 
 ---
 
@@ -409,8 +410,12 @@ Le Log Analytics Workspace est le puits central de logs. Azure Monitor Agent (AM
 |---|---|
 | `Heartbeat` | État de santé et présence réseau (toutes les 60s) |
 | `Syslog` | Journaux système Linux (`/var/log/messages`, `/var/log/secure`) |
-| `InsightsMetrics` | Compteurs de performance (CPU, RAM, Disque, Réseau) |
+| `Perf` | Compteurs de performance (CPU, RAM, Disque, Réseau) |
 | `SecurityEvent` | Événements de sécurité |
+
+> 💡 **Note** : Ce lab utilise la table `Perf` (DCR standard) et non `InsightsMetrics` (VM Insights).
+> Les deux tables exposent les mêmes métriques avec une syntaxe différente.
+> `InsightsMetrics` nécessite l'activation de **VM Insights** sur chaque machine Arc.
 
 ### Déploiement du workspace
 
@@ -422,32 +427,42 @@ az monitor log-analytics workspace create \
   --sku PerGB2018 \
   --retention-time 90
 ```
+
 <img width="960" height="217" alt="5a" src="https://github.com/user-attachments/assets/89221511-2add-43dc-8fa8-3660201aa0be" />
 <img width="917" height="356" alt="5b" src="https://github.com/user-attachments/assets/57682316-d08d-43c4-a228-ed9c16e83aac" />
 <img width="916" height="391" alt="5c" src="https://github.com/user-attachments/assets/9edaf8f1-c1e3-481c-8f22-2dd1426ee327" />
 
-----
+---
 
 ## 🔗 Chapitre 6 — Déploiement Azure Arc
 
 ### Principe de fonctionnement
 
 Azure Arc installe un agent `azcmagent` sur chaque serveur Linux. Cet agent :
+
 - S'authentifie auprès d'Azure via HTTPS (port 443)
 - Enregistre le serveur comme ressource Azure managée
 - Maintient un heartbeat permanent vers Azure Resource Manager
 - Permet l'application de policies Azure Policy
 - Sert de vecteur de déploiement pour les extensions (AMA, etc.)
-### Installation de l'extension
+
+### Installation de l'extension CLI
+
+```bash
 az extension add --name connectedmachine
 az extension list --output table
 # → connectedmachine doit apparaître dans la liste
+```
+
 <img width="960" height="196" alt="5d" src="https://github.com/user-attachments/assets/61b1bbab-737a-4f34-9b7c-27b35310b08e" />
 
+---
 
 ### Étape 1 — Génération du script d'onboarding
+
 Utiliser le portail Azure pour créer un script qui automatise le téléchargement et l'installation de l'agent et établit la connexion avec Azure Arc.
-Depuis le portail : **Azure Arc → Machines → + Ajouter existant → Générer un script**
+
+**Depuis le portail : Azure Arc → Machines → + Ajouter existant → Générer un script**
 
 <img width="845" height="401" alt="6a" src="https://github.com/user-attachments/assets/565698e1-a301-41ed-aab4-1fb69e198c77" />
 <img width="960" height="326" alt="6b" src="https://github.com/user-attachments/assets/7670b9aa-ec38-4d90-9b4f-3c064b5dc61d" />
@@ -459,14 +474,16 @@ Depuis le portail : **Azure Arc → Machines → + Ajouter existant → Génére
 ```bash
 # Télécharger et installer le binaire de l'agent hybride
 wget https://gbl.his.arc.azure.com/azcmagent-linux -O install_linux_azcmagent.sh
+
 # Exécuter l'installation
 sudo bash install_linux_azcmagent.sh
 ```
+
 <img width="651" height="184" alt="6c" src="https://github.com/user-attachments/assets/d31ace9a-cacd-4a11-a803-71516a627665" />
 
 ```bash
 # Connexion au plan de contrôle Azure Resource Manager
-  sudo azcmagent connect \
+sudo azcmagent connect \
   --tenant-id "TENANT-ID" \
   --subscription-id "SUBSCRIPTION-ID" \
   --resource-group "rg-finsecure-arc" \
@@ -475,21 +492,24 @@ sudo bash install_linux_azcmagent.sh
   --cloud "AzureCloud" \
   --tags "Environment=Production,Project=Hybrid Governance,Owner=Serge TOGNON,HostRoleType=LinuxAdminServer"
 ```
-<img width="652" height="406" alt="6d" src="https://github.com/user-attachments/assets/5722c9ea-d99f-40e6-a3dd-5d46aa518fb7" />
 
+<img width="652" height="406" alt="6d" src="https://github.com/user-attachments/assets/5722c9ea-d99f-40e6-a3dd-5d46aa518fb7" />
 
 ---
 
 ### Étape 3 — Installation sur server.lab.local
 
-""bash
+```bash
 # Télécharger et installer le binaire de l'agent hybride
 wget https://gbl.his.arc.azure.com/azcmagent-linux -O install_linux_azcmagent.sh
+
 # Exécuter l'installation
 sudo bash install_linux_azcmagent.sh
+```
 
 <img width="651" height="196" alt="6e" src="https://github.com/user-attachments/assets/1e5652af-5c44-4536-a0ec-7aaa92ba91e5" />
 
+```bash
 # Connecter le serveur à Azure Arc
 sudo azcmagent connect \
   --tenant-id "<TENANT_ID>" \
@@ -499,9 +519,9 @@ sudo azcmagent connect \
   --resource-name "server-lab-local" \
   --cloud "AzureCloud" \
   --tags "Environment=Production,Project=Hybrid Governance,Owner=Serge TOGNON,HostRoleType=LinuxApplicationServer"
+```
 
 <img width="668" height="265" alt="6f" src="https://github.com/user-attachments/assets/cc877a62-dd73-4307-8e03-43995a6aab89" />
-
 
 ---
 
@@ -516,40 +536,29 @@ systemctl status himdsd
 systemctl status gcad
 ```
 
-Résultat attendu de `azcmagent show` :
-
 <img width="650" height="288" alt="6g" src="https://github.com/user-attachments/assets/cd80843d-584b-4f5e-a97e-95bbab5082f3" />
-
-<img width="631" height="158" alt="6g&#39;" src="https://github.com/user-attachments/assets/48a3cc8a-181a-4427-92bf-a8e909ba6e82" />
+<img width="631" height="158" alt="6g'" src="https://github.com/user-attachments/assets/48a3cc8a-181a-4427-92bf-a8e909ba6e82" />
 
 ---
 
 ### 🔄 Déploiement à grande échelle — Service Principal & Ansible
 
-> 💡 **Contexte** : Le lab FinSecure SA repose sur 2 VMs locales onboardées
-> manuellement aux Étapes 2 et 3. Cette section documente l'approche
-> **Service Principal + Ansible** pour un déploiement à grande échelle,
-> applicable en contexte entreprise (50+ machines). Elle n'a pas été exécutée
-> dans ce lab mais constitue une compétence opérationnelle documentée en
-> prévision de scénarios réels.
-
+> 💡 **Contexte** : Le lab FinSecure SA repose sur 2 VMs locales onboardées manuellement aux Étapes 2 et 3.
+> Cette section documente l'approche **Service Principal + Ansible** pour un déploiement à grande échelle,
+> applicable en contexte entreprise (50+ machines). Elle n'a pas été exécutée dans ce lab mais constitue
+> une compétence opérationnelle documentée en prévision de scénarios réels.
 
 #### Pourquoi un Service Principal ?
 
-L'onboarding des Étapes 2 et 3 utilise une authentification **interactive** :
-`azcmagent connect` ouvre un navigateur pour valider l'identité de l'utilisateur.
-Cette approche est impossible à automatiser sur 50 VMs simultanément.
+L'onboarding des Étapes 2 et 3 utilise une authentification **interactive** : `azcmagent connect` ouvre un navigateur pour valider l'identité de l'utilisateur. Cette approche est impossible à automatiser sur 50 VMs simultanément.
 
-Le **Service Principal** est une identité applicative Azure AD qui permet à
-`azcmagent connect` de s'authentifier **sans intervention humaine**, prérequis
-indispensable pour tout déploiement Ansible à grande échelle.
+Le **Service Principal** est une identité applicative Azure AD qui permet à `azcmagent connect` de s'authentifier **sans intervention humaine** , prérequis indispensable pour tout déploiement Ansible à grande échelle.
 
 ---
 
 #### 6.1 — Créer le Service Principal d'onboarding
 
-Le rôle minimal requis est **Azure Connected Machine Onboarding** ,il ne donne
-aucun accès aux ressources Azure existantes.
+Le rôle minimal requis est **Azure Connected Machine Onboarding** , il ne donne aucun accès aux ressources Azure existantes.
 
 ```bash
 az ad sp create-for-rbac \
@@ -558,7 +567,7 @@ az ad sp create-for-rbac \
   --scopes "/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-finsecure-arc"
 ```
 
-**Résultat à conserver:**
+Résultat à conserver :
 
 ```json
 {
@@ -585,8 +594,6 @@ Role                                    Scope
 Azure Connected Machine Onboarding      /subscriptions/.../rg-finsecure-arc
 ```
 
-
-
 ---
 
 #### 6.2 — Inventaire Ansible
@@ -611,14 +618,11 @@ Tester la connectivité SSH sur toutes les VMs :
 ansible arc_servers -i inventory/hosts.ini -m ping
 ```
 
-Résultat attendu : toutes les VMs répondent **pong** en vert.
-
 ---
 
 #### 6.3 — Chiffrer les secrets avec Ansible Vault
 
 ```bash
-# Créer le fichier de secrets chiffré
 ansible-vault create group_vars/all/vault.yml
 ```
 
@@ -708,7 +712,7 @@ ansible-playbook -i inventory/hosts.ini playbooks/arc_onboarding.yml \
   --ask-vault-pass \
   --check
 
-# Exécution réelle , 10 VMs en parallèle
+# Exécution réelle — 10 VMs en parallèle
 ansible-playbook -i inventory/hosts.ini playbooks/arc_onboarding.yml \
   --ask-vault-pass \
   --forks 10
@@ -731,29 +735,22 @@ az connectedmachine list \
   --query "[?status=='Connected'] | length(@)"
 ```
 
-
-
+---
 
 ## ✅ Chapitre 7 — Validation Azure Arc
 
 ### Vérification via Azure CLI
 
 ```bash
-# Lister les machines Arc connectées
 az connectedmachine list \
   --resource-group rg-finsecure-arc \
-  --query "[].{Nom:name,Status:status,OS:osName,Version:osVersion, Region:location}" \
+  --query "[].{Nom:name,Status:status,OS:osName,Version:osVersion,Region:location}" \
   --output table
 ```
 
-**Résultat attendu :**
 <img width="960" height="152" alt="7a" src="https://github.com/user-attachments/assets/b18d6dfe-e7a9-45fb-89b5-c16c93cfbd6b" />
-
 <img width="778" height="304" alt="7b" src="https://github.com/user-attachments/assets/124a53b9-cf6f-4196-8e87-89295adf73e9" />
-
 <img width="914" height="305" alt="7c" src="https://github.com/user-attachments/assets/63d64f07-3b5e-4981-88a5-3be20718fc7a" />
-
-
 
 ---
 
@@ -773,7 +770,7 @@ az connectedmachine extension create \
   --resource-group rg-finsecure-arc \
   --type AzureMonitorLinuxAgent \
   --publisher Microsoft.Azure.Monitor \
-  --location francecentral
+  --location francecentral \
   --no-wait
 
 # Déploiement sur server-lab-local
@@ -783,23 +780,19 @@ az connectedmachine extension create \
   --resource-group rg-finsecure-arc \
   --type AzureMonitorLinuxAgent \
   --publisher Microsoft.Azure.Monitor \
-  --location francecentral
+  --location francecentral \
   --no-wait
 ```
+
 <img width="920" height="374" alt="8a" src="https://github.com/user-attachments/assets/0799963b-b363-4e5b-8407-97146cc5cd36" />
-
 <img width="857" height="356" alt="8b" src="https://github.com/user-attachments/assets/fb9be511-c9b7-433d-9d64-0ed467fa5ee0" />
-
-
-
-
 
 ---
 
 ### Vérification locale du service AMA
 
 ```bash
-# Vérifier le service sur chaque VM(admin-lab-local et server-lab-local)
+# Vérifier le service sur chaque VM
 sudo systemctl status azuremonitoragent
 
 # Consulter les logs de l'agent
@@ -808,15 +801,11 @@ journalctl -u azuremonitoragent -n 50
 # Vérifier les processus actifs
 ps aux | grep -i azure
 ```
-<img width="649" height="405" alt="8c" src="https://github.com/user-attachments/assets/d12a7a46-7f15-4f7c-b1e1-4c7e05fd5b0e" />
 
+<img width="649" height="405" alt="8c" src="https://github.com/user-attachments/assets/d12a7a46-7f15-4f7c-b1e1-4c7e05fd5b0e" />
 <img width="650" height="265" alt="8d" src="https://github.com/user-attachments/assets/e6b74da1-4b25-49a1-97d5-9b4193ce72dd" />
 
-
-
 ---
-
-
 
 ## 📐 Chapitre 9 — Data Collection Rules (DCR)
 
@@ -853,7 +842,7 @@ Les DCR définissent **quoi collecter** et **où envoyer** les données. Elles a
 
 ### Association de la DCR aux machines Arc
 
-bash
+```bash
 # Récupérer l'ID de la DCR
 DCR_ID=$(az monitor data-collection rule show \
   --name dcr-finsecure-linux \
@@ -871,45 +860,30 @@ az monitor data-collection rule association create \
   --name dcra-server-lab \
   --resource "/subscriptions/<sub-id>/resourceGroups/rg-finsecure-arc/providers/Microsoft.HybridCompute/machines/server-lab-local" \
   --data-collection-rule-id $DCR_ID
+```
 
-  **Etapes Portail Azure**
+**Méthode portail Azure — depuis la DCR :**
 
-**Méthode** : Depuis la DCR 
-
-Azure Portal → recherche Data collection rules → dcr-finsecure-linux
-Resources (menu gauche)
-+ Add → sélectionne les deux machines :
-
-admin-lab-local
-server-lab-local
-
-
-Save
-
+1. Azure Portal → Data collection rules → `dcr-finsecure-linux`
+2. **Resources** (menu gauche) → **+ Add**
+3. Sélectionner `admin-lab-local` et `server-lab-local`
+4. **Save**
 
 <img width="922" height="403" alt="9a" src="https://github.com/user-attachments/assets/3d9a8924-3ce3-4582-aa29-a0f26ff1b53b" />
-
 <img width="911" height="377" alt="9b" src="https://github.com/user-attachments/assets/d4b5267f-dc42-47e2-96ec-734ad0dbaecf" />
-
 <img width="901" height="372" alt="9c" src="https://github.com/user-attachments/assets/77674148-2283-45a5-bb04-a966ea7e2248" />
-
 <img width="847" height="368" alt="9d" src="https://github.com/user-attachments/assets/7f4ead1a-b2d4-4ef3-9371-442d0c5f1418" />
-
-
 <img width="920" height="401" alt="9e" src="https://github.com/user-attachments/assets/04ec9365-ff2b-4939-9bd5-9111480ea73b" />
 
 ---
 
-
-
 ## 🔍 Chapitre 10 — Analyse des journaux KQL
 
 ### Accès à Log Analytics
-Portail Azure → **`law-finsecure-prod` → Journaux**
 
-> ⏱️ **Important :** Attendre **15 à 30 minutes** après la configuration de la DCR
-> avant d'exécuter les requêtes. Les premières données mettent quelques minutes
-> à arriver dans le workspace.
+**Portail Azure → `law-finsecure-prod` → Journaux**
+
+> ⏱️ **Important :** Attendre **15 à 30 minutes** après la configuration de la DCR avant d'exécuter les requêtes.
 
 ---
 
@@ -946,7 +920,6 @@ Perf
 
 <img width="881" height="407" alt="10b" src="https://github.com/user-attachments/assets/ea50de27-2508-46bb-9457-b60dbc83a99f" />
 
-
 ---
 
 ### Requête 3 — Utilisation mémoire
@@ -963,12 +936,12 @@ Perf
 
 <img width="886" height="396" alt="10c" src="https://github.com/user-attachments/assets/8f3b4a9f-1d58-4771-a593-b0ccd535e8a8" />
 
-
 ---
 
 ### Requête 4 — Journalisation des flux d'accès SSH
-//Détecter les tentatives de connexion SSH (réussies et échouées)
+
 ```kql
+// Détecter les tentatives de connexion SSH (réussies et échouées)
 Syslog
 | where TimeGenerated > ago(48h)
 | where Facility in ("auth", "authpriv")
@@ -979,13 +952,12 @@ Syslog
 
 <img width="919" height="406" alt="10d" src="https://github.com/user-attachments/assets/77cf87d1-3288-43ef-837e-1094a527d4ec" />
 
-
 ---
 
 ### Requête 5 — Échecs d'authentification (sécurité)
 
 ```kql
-// Compter les échecs de connexion par IP source
+// Compter les échecs de connexion par facility
 Syslog
 | where TimeGenerated > ago(24h)
 | where Facility in ("auth", "authpriv")
@@ -996,8 +968,8 @@ Syslog
 | order by FailedAttempts desc
 ```
 
-> **📸 Capture 10e** — `screenshots/10e_kql_failed_auth.png`
-> Tableau des IPs avec tentatives d'authentification échouées > 3.
+<img width="925" height="389" alt="10e" src="https://github.com/user-attachments/assets/c6db54c4-a0ba-4c97-89ef-cd0335db79de" />
+
 
 ---
 
@@ -1011,8 +983,8 @@ Syslog
 | project TimeGenerated, Computer, SyslogMessage
 | order by TimeGenerated desc
 ```
-<img width="918" height="371" alt="10f" src="https://github.com/user-attachments/assets/cf9d397f-5be9-4ef3-8e75-9701d3750486" />
 
+<img width="920" height="407" alt="10f" src="https://github.com/user-attachments/assets/d44da6f9-371f-4374-aa83-357a3b460938" />
 
 
 ---
@@ -1030,7 +1002,6 @@ Perf
 ```
 
 <img width="909" height="410" alt="10g" src="https://github.com/user-attachments/assets/67012cb3-98fc-477d-9c27-9e9dde93482f" />
-
 
 ---
 
@@ -1050,32 +1021,32 @@ Syslog
 | order by TimeGenerated desc
 ```
 
-> **📸 Capture 10h** — `screenshots/10h_kql_sudo_audit.png`
-> Tableau avec les colonnes `TimeGenerated`, `Computer`, `User`, `Command`
-> affichant les commandes sudo exécutées pendant le lab.
 
+---
 
 ## 🚨 Chapitre 11 — Alertes Azure
 
-##  Étape 1 — Déploiement du Groupe d'actions
-Un groupe d'actions est le mécanisme Azure qui définit qui prévenir et comment lorsqu'une alerte se déclenche. Il centralise les canaux de notification (email, SMS, webhook, ticket ITSM) et peut être partagé entre plusieurs règles d'alerte , modifier le groupe suffit pour mettre à jour toutes les alertes qui l'utilisent.
-Dans le contexte FinSecure SA, ag-finsecure-ops est le groupe qui reçoit toutes les alertes d'infrastructure hybride : il est créé avant les règles d'alerte car celles-ci en dépendent au moment du déploiement.
-bash
+### Étape 1 — Déploiement du Groupe d'actions
+
+Un **groupe d'actions** est le mécanisme Azure qui définit qui prévenir et comment lorsqu'une alerte se déclenche. Il centralise les canaux de notification (email, SMS, webhook, ticket ITSM) et peut être partagé entre plusieurs règles d'alerte , modifier le groupe suffit pour mettre à jour toutes les alertes qui l'utilisent.
+
+Dans le contexte FinSecure SA, `ag-finsecure-ops` est le groupe qui reçoit toutes les alertes d'infrastructure hybride. Il est créé **avant** les règles d'alerte car celles-ci en dépendent au moment du déploiement.
+
+```bash
 az monitor action-group create \
   --name "ag-finsecure-ops" \
   --resource-group "rg-finsecure-arc" \
   --short-name "FinSecureOps" \
   --action email sysadmin-alerts arc-alerts@finsecure-sa.com
-
+```
 
 <img width="920" height="395" alt="11a" src="https://github.com/user-attachments/assets/937f6ee7-a984-4bae-9327-8499e462b971" />
 
 ---
+
 ### Étape 2 — Création des règles d'alerte
 
-Une **règle d'alerte** surveille en continu une métrique ou une requête KQL
-et déclenche une notification vers le groupe d'actions `ag-finsecure-ops`
-dès qu'un seuil critique est franchi.
+Une **règle d'alerte** surveille en continu une métrique ou une requête KQL et déclenche une notification vers `ag-finsecure-ops` dès qu'un seuil critique est franchi.
 
 > **Chemin portail :** Surveillance → Alertes → + Créer → Règle d'alerte
 
@@ -1084,21 +1055,13 @@ dès qu'un seuil critique est franchi.
 #### Alerte 1 — CPU > 80%
 
 **Pourquoi cette alerte ?**
-Le CPU est la première ressource à saturer lors d'une surcharge applicative.
-Dans un contexte financier (FinSecure SA), un CPU saturé peut impacter les
-traitements de transactions, les jobs batch ou les APIs critiques. Le seuil
-de 80% laisse une marge d'intervention avant la saturation totale à 100%.
+Le CPU est la première ressource à saturer lors d'une surcharge applicative. Dans un contexte financier (FinSecure SA), un CPU saturé peut impacter les traitements de transactions, les jobs batch ou les APIs critiques. Le seuil de 80% laisse une marge d'intervention avant la saturation totale à 100%.
 
 **Comment ça fonctionne ?**
-La requête interroge la table `Perf` toutes les **1 minute** sur une fenêtre
-de **5 minutes**. Elle calcule la moyenne CPU par serveur. Si cette moyenne
-dépasse 80%, la requête retourne au moins 1 résultat → l'alerte se déclenche
-et envoie un email via `ag-finsecure-ops`.
+La requête interroge la table `Perf` toutes les **1 minute** sur une fenêtre de **5 minutes**. Elle calcule la moyenne CPU par serveur. Si cette moyenne dépasse 80%, la requête retourne au moins 1 résultat → l'alerte se déclenche et envoie un email via `ag-finsecure-ops`.
 
 **Pourquoi seuil = 0 ?**
-La requête KQL filtre déjà `where AvgCPU > 80`  elle ne retourne des lignes
-que si le seuil est dépassé. "Résultats > 0" signifie donc "la condition est
-vraie sur au moins un serveur".
+La requête KQL filtre déjà `where AvgCPU > 80`  elle ne retourne des lignes que si le seuil est dépassé. "Résultats > 0" signifie donc "la condition est vraie sur au moins un serveur".
 
 | Champ | Valeur |
 |-------|--------|
@@ -1123,24 +1086,18 @@ Perf
 | where AvgCPU > 80
 ```
 
+---
+
 #### Alerte 2 — Serveur indisponible (Heartbeat)
 
 **Pourquoi cette alerte ?**
-C'est l'alerte la plus critique du lab. Le heartbeat est le "pouls" de la VM ,
-Azure Monitor le reçoit toutes les minutes. Une absence depuis 5 minutes indique
-que le serveur est éteint, que le réseau est coupé, ou que l'agent Arc a planté.
-Dans un environnement financier, une indisponibilité non détectée peut avoir des
-conséquences graves sur la continuité de service , alignement direct avec les
-exigences **PCI-DSS** et **ISO 27001**.
+C'est l'alerte la plus critique du lab. Le heartbeat est le "pouls" de la VM , Azure Monitor le reçoit toutes les minutes. Une absence depuis 5 minutes indique que le serveur est éteint, que le réseau est coupé, ou que l'agent Arc a planté. Dans un environnement financier, une indisponibilité non détectée peut avoir des conséquences graves sur la continuité de service , alignement direct avec les exigences **PCI-DSS** et **ISO 27001**.
 
 **Comment ça fonctionne ?**
-La requête cherche les serveurs dont le dernier heartbeat date de plus de
-5 minutes. Si elle retourne des résultats → un ou plusieurs serveurs sont
-silencieux → alerte **Critique** déclenchée immédiatement.
+La requête cherche les serveurs dont le dernier heartbeat date de plus de 5 minutes. Si elle retourne des résultats → un ou plusieurs serveurs sont silencieux → alerte **Critique** déclenchée immédiatement.
 
-**Pourquoi sévérité 1 et pas 2 ?**
-Une indisponibilité serveur est plus grave qu'une surcharge CPU , le serveur
-est complètement inaccessible, pas juste lent.
+**Pourquoi sévérité 0 et pas 2 ?**
+Une indisponibilité serveur est plus grave qu'une surcharge CPU — le serveur est complètement inaccessible, pas juste lent.
 
 | Champ | Valeur |
 |-------|--------|
@@ -1163,23 +1120,18 @@ Heartbeat
 | where LastHeartbeat < ago(5m)
 ```
 
+---
+
 #### Alerte 3 — Espace disque < 20%
 
 **Pourquoi cette alerte ?**
-Un disque plein est une panne silencieuse et dévastatrice ,les logs s'arrêtent
-d'écrire, les bases de données corrompent leurs fichiers, les applications
-crashent sans message d'erreur clair. Le seuil de 20% est le standard en
-production pour anticiper le problème avant qu'il devienne critique.
+Un disque plein est une panne silencieuse et dévastatrice ; es logs s'arrêtent d'écrire, les bases de données corrompent leurs fichiers, les applications crashent sans message d'erreur clair. Le seuil de 20% est le standard en production pour anticiper le problème avant qu'il devienne critique.
 
 **Comment ça fonctionne ?**
-La requête surveille le compteur `% Free Space` sur toutes les partitions
-individuelles. Si une partition passe sous 20% d'espace libre → alerte
-déclenchée avec le nom du serveur et de la partition concernés.
+La requête surveille le compteur `% Free Space` sur toutes les partitions individuelles. Si une partition passe sous 20% d'espace libre → alerte déclenchée avec le nom du serveur et de la partition concernés.
 
 **Pourquoi `InstanceName != "total"` ?**
-`total` est une valeur agrégée artificielle. Surveiller les partitions
-individuelles (`/`, `/var`, `/home`) est plus précis et actionnable qu'une
-moyenne globale qui peut masquer une partition saturée.
+`total` est une valeur agrégée artificielle. Surveiller les partitions individuelles (`/`, `/var`, `/home`) est plus précis et actionnable qu'une moyenne globale qui peut masquer une partition saturée.
 
 | Champ | Valeur |
 |-------|--------|
@@ -1205,25 +1157,18 @@ Perf
 | where AvgFree < 20
 ```
 
+---
 
 #### Alerte 4 — Mémoire > 85%
 
 **Pourquoi cette alerte ?**
-La saturation mémoire provoque du swap intensif (écriture sur disque à la
-place de la RAM), ce qui dégrade drastiquement les performances. À 85%, le
-système commence à swapper activement , le serveur est encore fonctionnel
-mais ses performances chutent. C'est le moment d'intervenir avant d'atteindre
-100% et le crash.
+La saturation mémoire provoque du swap intensif (écriture sur disque à la place de la RAM), ce qui dégrade drastiquement les performances. À 85%, le système commence à swapper activement ; le serveur est encore fonctionnel mais ses performances chutent. C'est le moment d'intervenir avant d'atteindre 100% et le crash.
 
 **Comment ça fonctionne ?**
-La requête calcule la moyenne de `% Used Memory` sur 15 minutes par serveur.
-Une fenêtre de 15 minutes évite les faux positifs liés aux pics mémoire courts
-et normaux lors du démarrage de processus.
+La requête calcule la moyenne de `% Used Memory` sur 15 minutes par serveur. Une fenêtre de 15 minutes évite les faux positifs liés aux pics mémoire courts et normaux lors du démarrage de processus.
 
 **Pourquoi 15 minutes et pas 5 ?**
-La mémoire est moins volatile que le CPU , un pic CPU de 2 minutes peut être
-normal (compilation, batch), mais une mémoire > 85% sur 15 minutes consécutives
-est un signal réel de problème structurel.
+La mémoire est moins volatile que le CPU , un pic CPU de 2 minutes peut être normal (compilation, batch), mais une mémoire > 85% sur 15 minutes consécutives est un signal réel de problème structurel.
 
 | Champ | Valeur |
 |-------|--------|
@@ -1247,9 +1192,10 @@ Perf
 | summarize AvgMem = avg(CounterValue) by Computer
 | where AvgMem > 85
 ```
+
 <img width="920" height="361" alt="11b" src="https://github.com/user-attachments/assets/c3268de9-f82d-4fd9-9b6d-35c10fd832dc" />
 
-
+---
 
 ### Bonnes pratiques d'alerting
 
@@ -1261,12 +1207,13 @@ Perf
 | Groupement d'alertes | Un seul groupe d'actions `ag-finsecure-ops` pour toutes les règles |
 | Requêtes basées sur `Perf` | Adapté à une DCR standard sans VM Insights |
 
+---
+
 ## 🔄 Chapitre 12 — Azure Update Manager
 
 ### Rôle d'Update Manager
 
-Azure Update Manager permet de **gérer les mises à jour Linux directement
-depuis Azure**, sans accès direct aux serveurs. Il offre :
+Azure Update Manager permet de **gérer les mises à jour Linux directement depuis Azure**, sans accès direct aux serveurs.
 
 | Fonctionnalité | Détail |
 |----------------|--------|
@@ -1275,25 +1222,20 @@ depuis Azure**, sans accès direct aux serveurs. Il offre :
 | Déploiement | Planifié ou immédiat via `dnf update` |
 | Rapport | Historique et statut post-déploiement |
 
-> 💡 **Prérequis** : Les machines doivent être connectées à Azure Arc
-> et l'agent `azcmagent` doit être en statut **Connected**.
+> 💡 **Prérequis** : Les machines doivent être connectées à Azure Arc et l'agent `azcmagent` doit être en statut **Connected**.
 
 ---
 
 ### Étape 1 — Évaluation de la conformité
 
-#### Via le portail Azure 
+#### Via le portail Azure
 
 **Azure Update Manager → Machines → Sélectionner les VMs → Vérifier les mises à jour**
 
-> **📸 Capture 12a** — `screenshots/12a_update_manager_overview.png`
-> Chemin portail : `Azure Update Manager → Vue d'ensemble`
-> Le tableau de bord doit afficher les 2 machines évaluées et les
-> catégories de mises à jour disponibles (Critical, Security, Other).
-
-> **📸 Capture 12b** — `screenshots/12b_updates_available.png`
-> Chemin portail : `Azure Update Manager → Machines → admin-lab-local → Mises à jour`
-> La liste des paquets classée par criticité doit être visible.
+<img width="917" height="364" alt="12a" src="https://github.com/user-attachments/assets/10a3c1f7-93e9-4227-b97f-8f2e95fa580c" />
+<img width="904" height="386" alt="12b" src="https://github.com/user-attachments/assets/75cae8d6-8d29-45c0-988f-b129129d2ee8" />
+<img width="911" height="397" alt="12c" src="https://github.com/user-attachments/assets/066203ba-5bb8-4225-9bda-54781e17d79d" />
+<img width="926" height="431" alt="12d" src="https://github.com/user-attachments/assets/b9c29995-c33f-48cb-b200-424b00861651" />
 
 #### Via Azure CLI
 
@@ -1309,25 +1251,22 @@ az connectedmachine assess-patches \
   --name server-lab-local
 
 # Lister les mises à jour disponibles
-az connectedmachine list-patches \
+az connectedmachine show \
   --resource-group rg-finsecure-arc \
   --name admin-lab-local \
-  --query "[].{Paquet:patchName, Criticite:classifications, KB:kbId}" \
+  --expand "instanceView" \
+  --query "instanceView.patchStatus.assessmentDetails" \
   --output table
 ```
 
-> ⚠️ **Note** : La commande `az maintenance update list` ne fonctionne
-> pas sur les machines Arc — utiliser `az connectedmachine assess-patches`
-> à la place.
+> ⚠️ **Note** : La commande `az maintenance update list` ne fonctionne pas sur les machines Arc.
+> Utiliser `az connectedmachine assess-patches` à la place.
 
 ---
 
 ### Étape 2 — Planification du déploiement
 
-#### Via le portail Azure
-
-1. **Azure Update Manager → Planifications de maintenance → + Créer**
-2. Remplir les champs :
+**Azure Update Manager → Planifications de maintenance → + Créer**
 
 | Champ | Valeur |
 |-------|--------|
@@ -1340,16 +1279,13 @@ az connectedmachine list-patches \
 | Machines cibles | `admin-lab-local` + `server-lab-local` |
 | Classifications | Critical + Security + Other |
 
-> **📸 Capture 12c** — `screenshots/12c_deployment_schedule.png`
-> Chemin portail : `Update Manager → Planifications de maintenance → deploy-finsecure-monthly`
-> La configuration doit afficher les deux machines cibles, la planification
-> mensuelle, la fenêtre de 2 heures et l'option de reboot.
+<img width="917" height="326" alt="12e" src="https://github.com/user-attachments/assets/8bc13cf7-a3ca-44e0-9499-8ee0ef345475" />
+<img width="918" height="311" alt="12f" src="https://github.com/user-attachments/assets/4d93552e-cb04-4c44-9dc2-01234281f4b8" />
+<img width="914" height="282" alt="12g" src="https://github.com/user-attachments/assets/e7e2af0d-e5e0-4af2-8b02-2cb3ef88120f" />
 
 ---
 
 ### Étape 3 — Déploiement immédiat (one-shot)
-
-Pour appliquer les mises à jour immédiatement sans attendre la planification :
 
 ```bash
 # Installer les mises à jour critiques et de sécurité maintenant
@@ -1358,16 +1294,12 @@ az connectedmachine install-patches \
   --name admin-lab-local \
   --maximum-duration PT2H \
   --reboot-setting IfRequired \
-  --windows-parameters "{'classificationsToInclude': []}" \
   --linux-parameters "{'classificationsToInclude': ['Critical','Security']}"
 ```
 
-Ou depuis le portail :
-**Azure Update Manager → Machines → Sélectionner les VMs → Mettre à jour maintenant**
+Ou depuis le portail : **Azure Update Manager → Machines → Sélectionner les VMs → Mettre à jour maintenant**
 
-> **📸 Capture 12d** — `screenshots/12d_install_now.png`
-> Chemin portail : `Update Manager → Machines`
-> Le bouton **Mettre à jour maintenant** sélectionné avec les 2 machines cochées.
+<img width="913" height="346" alt="12h" src="https://github.com/user-attachments/assets/56d0993b-28b3-407b-a8f5-27ee8219a6d8" />
 
 ---
 
@@ -1377,79 +1309,205 @@ Ou depuis le portail :
 |----------------|--------|
 | Évaluer avant de déployer | Toujours lancer `assess-patches` avant `install-patches` |
 | Fenêtre de maintenance | 2h minimum pour éviter les timeouts |
-| Reboot | `IfRequired` — ne redémarre que si nécessaire |
+| Reboot | `IfRequired` : ne redémarre que si nécessaire |
 | Criticité | Prioriser Critical + Security en production financière |
-| Planification | Hors heures ouvrées (02h00 dimanche) — conformité PCI-DSS |
+| Planification | Hors heures ouvrées (02h00 dimanche) : conformité PCI-DSS |
 
+---
 
 ## 📋 Chapitre 13 — Validation des mises à jour
 
 ### Comparaison avant / après déploiement
 
+> 💡 **Principe** : Capturer l'état du système **avant** le déploiement permet de mesurer précisément
+> l'impact des mises à jour appliquées  quels paquets ont été mis à jour, quelle version du kernel
+> est active. C'est une exigence de traçabilité **PCI-DSS DSS 6.3.3**.
+
+---
+
+#### Phase 1 — Capturer l'état initial (avant déploiement)
+
 ```bash
-# AVANT — Enregistrer l'état initial (sur chaque VM)
+# Lister tous les paquets installés et les trier alphabétiquement
+# → sert de référence pour la comparaison post-déploiement
 sudo rpm -qa | sort > /tmp/packages_before.txt
+
+# Enregistrer la version du kernel actif
+# → permet de détecter une mise à jour du noyau Linux
 uname -r > /tmp/kernel_before.txt
+
+# Lister toutes les mises à jour disponibles dans les dépôts
+# → photographie de l'état de conformité avant application
 sudo dnf check-update > /tmp/updates_before.txt 2>&1
+```
 
-# APRÈS — Enregistrer l'état post-déploiement
+---
+
+#### Phase 2 — Lancer le déploiement depuis le portail
+
+**Update Manager → Machines → Sélectionner les 2 VMs → Mise à jour unique → Classifications : Critical + Security → Confirmer**
+
+---
+
+#### Phase 3 — Capturer l'état final (après déploiement)
+
+```bash
+# Lister à nouveau tous les paquets installés
+# → sera comparé avec packages_before.txt pour identifier les changements
 sudo rpm -qa | sort > /tmp/packages_after.txt
-uname -r > /tmp/kernel_after.txt
 
-# Comparer les deux états
+# Enregistrer la version du kernel après déploiement
+# → si différente de kernel_before.txt, un reboot est nécessaire
+uname -r > /tmp/kernel_after.txt
+```
+
+---
+
+#### Phase 4 — Analyser les différences
+
+```bash
+# Comparer les deux états complets
+# → lignes "<" = paquets supprimés | lignes ">" = paquets ajoutés ou mis à jour
 diff /tmp/packages_before.txt /tmp/packages_after.txt
 
-# Lister uniquement les paquets mis à jour
+# Filtrer uniquement les paquets mis à jour
 echo "=== Paquets mis à jour ==="
 diff /tmp/packages_before.txt /tmp/packages_after.txt | grep "^>"
 
-# Vérifier les paquets installés récemment
+# Vérifier les derniers paquets installés avec leur date exacte
 sudo rpm -qa --last | head -20
+
+# Comparer les versions du kernel
+echo "Kernel avant  : $(cat /tmp/kernel_before.txt)"
+echo "Kernel après  : $(uname -r)"
 ```
 
-> **📸 Capture 13a** — `screenshots/13a_update_history.png`
-> Chemin portail : `Update Manager → Historique des mises à jour`
-> L'entrée `deploy-finsecure-monthly` doit afficher le statut **"Réussi"** ✅, le nombre de paquets installés et la durée d'exécution.
+<img width="915" height="352" alt="13a" src="https://github.com/user-attachments/assets/72743545-26e6-4750-82c1-892eb3a0ca0e" />
 
-> **📸 Capture 13b** — `screenshots/13b_diff_packages.png`
-> La commande `diff /tmp/packages_before.txt /tmp/packages_after.txt | grep "^>"` doit lister les paquets mis à jour (nom + version).
+**NB**
+> La commande `diff /tmp/packages_before.txt /tmp/packages_after.txt | grep "^>"`
+> doit lister les paquets mis à jour avec leur nom et version.
 
 ---
 
 ## 📊 Chapitre 14 — Azure Dashboards
 
-### Création du tableau de bord opérationnel
+### Rôle du tableau de bord
 
-Portail Azure → **Tableaux de bord → + Créer → Personnalisé**
-Nom : `dashboard-finsecure-ops`
+Le tableau de bord centralise en une seule vue tous les indicateurs de santé de l'infrastructure hybride FinSecure SA — état Arc, métriques système, alertes actives et conformité des mises à jour — sans avoir à naviguer entre les différents services Azure.
+
+---
+
+### Création du tableau de bord
+
+**Portail Azure → Tableaux de bord → + Créer → Personnalisé**
+
+| Champ | Valeur |
+|-------|--------|
+| Nom | `dashboard-finsecure-ops` |
+| Type | Personnalisé |
+| Partage | Privé (lab) |
+
+---
 
 ### Tuiles recommandées
 
-| Tuile | Source | Métrique |
-|---|---|---|
-| État Arc machines | Azure Arc | Statut Connected/Disconnected |
-| CPU en temps réel | InsightsMetrics | % utilisation CPU |
-| Mémoire en temps réel | InsightsMetrics | % utilisation RAM |
-| Espace disque | InsightsMetrics | % espace libre |
-| Alertes actives | Azure Monitor | Nombre d'alertes actives |
-| Conformité MAJ | Update Manager | % machines conformes |
-| Dernière connexion SSH | Syslog | Événements auth |
-| Disponibilité 24h | Heartbeat | % uptime |
+| Tuile | Source | Métrique | Table KQL |
+|-------|--------|----------|-----------|
+| État Arc machines | Azure Arc | Connected / Disconnected | `Heartbeat` |
+| CPU en temps réel | Log Analytics | % Processor Time | `Perf` |
+| Mémoire en temps réel | Log Analytics | % Used Memory | `Perf` |
+| Activité disque | Log Analytics | Disk Read/Write Bytes/sec | `Perf` |
+| Alertes actives | Azure Monitor | Nombre d'alertes actives | Native |
+| Conformité MAJ | Update Manager | Mises à jour en attente | Native |
+| Connexions SSH | Log Analytics | Événements auth/authpriv | `Syslog` |
+| Disponibilité 24h | Log Analytics | % uptime | `Heartbeat` |
 
-### Requête KQL pour la tuile de disponibilité
+> ⚠️ **Note** : Les tuiles CPU, Mémoire et Disque utilisent la table `Perf` (DCR standard)
+> et non `InsightsMetrics` (VM Insights) — adapté à la configuration DCR de ce lab.
+
+---
+
+### Requêtes KQL pour les tuiles
+
+**Tuile 1 — Disponibilité 24h**
 
 ```kql
 Heartbeat
 | where TimeGenerated > ago(24h)
-| summarize
-    Availability = round(countif(TimeGenerated > ago(24h)) * 100.0 / 1440, 1)
-    by Computer
+| summarize Availability = round(count() * 100.0 / 1440, 1) by Computer
 | project Computer, Availability
 ```
 
+**Tuile 2 — CPU moyen par serveur**
+
+```kql
+Perf
+| where TimeGenerated > ago(1h)
+| where ObjectName == "Processor"
+| where CounterName == "% Processor Time"
+| where InstanceName == "total"
+| summarize AvgCPU = round(avg(CounterValue), 1) by Computer
+| project Computer, AvgCPU
+```
+
+**Tuile 3 — Mémoire utilisée par serveur**
+
+```kql
+Perf
+| where TimeGenerated > ago(1h)
+| where ObjectName == "Memory"
+| where CounterName == "% Used Memory"
+| summarize AvgMem = round(avg(CounterValue), 1) by Computer
+| project Computer, AvgMem
+```
+
+**Tuile 4 — Dernières connexions SSH**
+
+```kql
+Syslog
+| where TimeGenerated > ago(24h)
+| where Facility in ("auth", "authpriv")
+| where SyslogMessage contains "sshd"
+| summarize LastSSH = max(TimeGenerated) by Computer
+| project Computer, LastSSH
+```
+
+**Tuile 5 — Synthèse toutes métriques**
+
+```kql
+Perf
+| where TimeGenerated > ago(1h)
+| where (ObjectName == "Processor" and CounterName == "% Processor Time" and InstanceName == "total")
+    or (ObjectName == "Memory" and CounterName == "% Used Memory")
+    or (ObjectName == "Logical Disk" and CounterName == "Logical Disk Bytes/sec")
+| summarize AvgVal = round(avg(CounterValue), 2) by Computer, ObjectName, CounterName
+| order by Computer asc, ObjectName asc
+```
+
+---
+
+### Étapes de création des tuiles
+
+**Pour chaque tuile KQL :**
+
+1. Modifier le tableau de bord → **+ Ajouter une tuile**
+2. Sélectionner **Journaux** (Log Analytics)
+3. Scope → `law-finsecure-prod`
+4. Coller la requête KQL
+5. Choisir le type de visualisation (Grille / Graphique en courbes)
+6. Nommer la tuile → **Appliquer**
+
+**Pour les tuiles natives (Alertes, Update Manager) :**
+
+1. **+ Ajouter une tuile → Métriques**
+2. Sélectionner la ressource concernée
+3. Choisir la métrique native
+
 > **📸 Capture 14a** — `screenshots/14a_dashboard_overview.png`
 > Chemin portail : `Tableaux de bord → dashboard-finsecure-ops`
-> Le tableau de bord doit afficher **au minimum 4 tuiles actives** avec des données réelles (état Arc, graphique CPU, alertes, disponibilité). Aucune tuile ne doit afficher "Aucune donnée".
+> Le tableau de bord doit afficher **au minimum 4 tuiles actives** avec des données réelles.
+> Aucune tuile ne doit afficher **"Aucune donnée"**.
 
 ---
 
@@ -1493,8 +1551,7 @@ Heartbeat
 ```
 
 > **📸 Capture 15a** — `screenshots/15a_compliance_report.png`
-> Chemin portail : `law-finsecure-prod → Journaux`
-> Les deux serveurs doivent afficher le statut **"✅ En ligne"**, avec leur score de disponibilité (ex : 99.8%) et leur version d'agent.
+> Les deux serveurs doivent afficher le statut **"✅ En ligne"** avec leur score de disponibilité.
 
 ---
 
@@ -1577,6 +1634,7 @@ sealert -a /var/log/audit/audit.log
 ### Checklist complète du projet
 
 #### Linux — admin.lab.local & server.lab.local
+
 - [ ] Hostname FQDN configuré (`admin.lab.local` / `server.lab.local`)
 - [ ] IP statique configurée et persistante
 - [ ] Connectivité Internet confirmée (port 443 vers Azure)
@@ -1584,33 +1642,38 @@ sealert -a /var/log/audit/audit.log
 - [ ] Authentification SSH par clé Ed25519 configurée
 - [ ] Authentification par mot de passe SSH désactivée
 - [ ] Banner légal SSH configuré
-- [ ] Firewalld actif — seul le service SSH autorisé
+- [ ] Firewalld actif — SSH restreint au `/32` partenaire, HTTPS 443 sortant autorisé
 - [ ] SELinux en mode **Enforcing** persistant
 
 #### Azure Arc
+
 - [ ] `admin-lab-local` → statut **Connected**
 - [ ] `server-lab-local` → statut **Connected**
 - [ ] Inventaire automatique collecté (OS, IP, version agent)
 - [ ] Tags de ressources corrects (Environment, Project, Owner, HostRoleType)
 
 #### Azure Monitor Agent
+
 - [ ] AMA installé sur `admin-lab-local` → statut **Succeeded**
 - [ ] AMA installé sur `server-lab-local` → statut **Succeeded**
 - [ ] Service `azuremonitoragent` **active (running)** sur les deux VMs
 
 #### Data Collection Rules
+
 - [ ] DCR `dcr-finsecure-linux` créée
 - [ ] 8 compteurs de performance configurés (CPU, RAM, Disque, Réseau)
 - [ ] 7 facilities Syslog configurées (niveau Warning)
 - [ ] DCR associée aux deux machines Arc
 
 #### Log Analytics
+
 - [ ] Table `Heartbeat` → données des deux serveurs visibles
-- [ ] Table `InsightsMetrics` → métriques CPU et mémoire visibles
+- [ ] Table `Perf` → métriques CPU, mémoire et disque visibles
 - [ ] Table `Syslog` → journaux Linux collectés
 - [ ] Requêtes KQL (1 à 8) fonctionnelles
 
 #### Alertes
+
 - [ ] Alerte CPU > 80% — créée et activée
 - [ ] Alerte mémoire > 85% — créée et activée
 - [ ] Alerte serveur indisponible (Heartbeat) — créée et activée
@@ -1618,74 +1681,55 @@ sealert -a /var/log/audit/audit.log
 - [ ] Groupe d'action email `ag-finsecure-ops` configuré
 
 #### Update Manager
+
 - [ ] Évaluation de conformité effectuée sur les deux machines
 - [ ] Inventaire des mises à jour disponibles visible (par criticité)
 - [ ] Planification mensuelle `deploy-finsecure-monthly` configurée
-- [ ] Historique de déploiement documenté (statut Réussi)
+- [ ] Historique de déploiement documenté
 
 ---
 
-
-
-
 ## 🔐 Chapitre 18 — Architecture cible Production
 
-
-
-> ### 💬 Retour d'expert — Architecture cible Production
+> ### 💬 Retour d'expert
 >
-> Suite à la publication de ce projet sur LinkedIn, **Bryan Bernet**,
-> Architecte technique chez ITS, a soulevé une remarque pertinente :
+> Suite à la publication de ce projet sur LinkedIn, **Bryan Bernet**, Architecte technique chez ITS,
+> a soulevé une remarque pertinente :
 >
-> *"Et en utilisant Arc Private Link et Monitor Private Link pour les flux
-> Monitor et VM hybrides ?"*
+> *"Et en utilisant Arc Private Link et Monitor Private Link pour les flux Monitor et VM hybrides ?"*
 >
-> Cette observation pointe exactement la limite de l'architecture précédente :
-> les endpoints publics Azure sont acceptables en environnement de test,
-> mais insuffisants pour une mise en production soumise à des exigences
-> de sécurité strictes (**PCI-DSS**, **ISO 27001**).
+> Cette observation pointe exactement la limite de l'architecture précédente : les endpoints publics
+> Azure sont acceptables en environnement de test, mais insuffisants pour une mise en production
+> soumise à des exigences de sécurité strictes (**PCI-DSS**, **ISO 27001**).
 >
-> Ce chapitre documente l'évolution naturelle vers une architecture
-> **zéro exposition publique**, où tous les flux Arc et Azure Monitor
-> transitent exclusivement via le **backbone Microsoft** grâce à
-> **Arc Private Link** et **AMPLS** (Azure Monitor Private Link Scope).
+> Ce chapitre documente l'évolution naturelle vers une architecture **zéro exposition publique**,
+> où tous les flux Arc et Azure Monitor transitent exclusivement via le **backbone Microsoft**
+> grâce à **Arc Private Link** et **AMPLS** (Azure Monitor Private Link Scope).
 
-<img width="546" height="413" alt="Capture d’écran 2026-06-11 061148" src="https://github.com/user-attachments/assets/9a74d31b-466f-4051-bcc0-4f39a9cf3b68" />
-
+<img width="546" height="413" alt="18_architecture" src="https://github.com/user-attachments/assets/9a74d31b-466f-4051-bcc0-4f39a9cf3b68" />
 
 ### (Arc Private Link + AMPLS — Zéro exposition publique)
 
-> 💡 **Contexte** : Ce chapitre fait suite à un échange avec **Bryan Bernet**,
-> Architecte technique, qui a soulevé la pertinence d'Arc Private Link et
-> d'AMPLS pour les flux Monitor en environnement hybride. Il documente
-> l'évolution naturelle de l'architecture lab vers un modèle **zéro exposition
-> publique**, conforme **PCI-DSS** et **ISO 27001**.
->
-> L'architecture  précédente (Chapitres 1-17) utilise les endpoints publics
-> Azure sécurisés via HTTPS 443 , valide pour un environnement de test, **insuffisant pour une
+> 💡 **Contexte** : L'architecture des Chapitres 1-17 utilise les endpoints publics Azure
+> sécurisés via HTTPS 443 — valide pour un environnement de test, **insuffisant pour une
 > production financière stricte**.
 
 ---
 
 ### 18.1 — Limites de l'architecture précédente
 
-| Composant | Architecture  | Risque en production |
-|-----------|-----------------|---------------------|
+| Composant | Architecture test | Risque en production |
+|-----------|-------------------|---------------------|
 | `azcmagent connect` | Endpoints publics Azure Arc | Trafic exposé sur internet public |
-| AMA → Log Analytics | Endpoints publics Monitor | Données de supervision en clair sur internet |
-| DNS | Résolution publique | Pas de contrôle sur la résolution des endpoints |
+| AMA → Log Analytics | Endpoints publics Monitor | Données de supervision sur internet |
+| DNS | Résolution publique | Pas de contrôle sur la résolution |
 | Firewall | Port 443 ouvert vers `*.azure.com` | Surface d'attaque large |
 
 ---
 
 ### 18.2 — Arc Private Link
 
-**Principe** : Arc Private Link supprime toute exposition publique de
-`azcmagent`. Le trafic entre les VMs locales et Azure Arc transite
-exclusivement via le **backbone Microsoft**, à travers un Private Endpoint
-dans le VNet Azure.
-
-**Composants à déployer** :
+**Principe** : Arc Private Link supprime toute exposition publique de `azcmagent`. Le trafic entre les VMs locales et Azure Arc transite exclusivement via le **backbone Microsoft**, à travers un Private Endpoint dans le VNet Azure.
 
 ```bash
 # 1. Créer l'Arc Private Link Scope
@@ -1721,9 +1765,7 @@ az connectedmachine private-link-scope machine add \
 
 ### 18.3 — AMPLS (Azure Monitor Private Link Scope)
 
-**Principe** : AMPLS sécurise tous les flux AMA → Log Analytics → Azure Monitor
-via des Private Endpoints dédiés. Les données de supervision ne transitent
-plus par internet public.
+**Principe** : AMPLS sécurise tous les flux AMA → Log Analytics → Azure Monitor via des Private Endpoints dédiés. Les données de supervision ne transitent plus par internet public.
 
 ```bash
 # 1. Créer l'AMPLS
@@ -1753,15 +1795,13 @@ az network private-endpoint create \
 
 ### 18.4 — Configuration DNS on-premise
 
-Le DNS forwarder local doit résoudre les noms privés Azure vers
-`168.63.129.16` (Azure DNS interne) pour que `azcmagent` et AMA
-atteignent les Private Endpoints et non les endpoints publics.
+Le DNS forwarder local doit résoudre les noms privés Azure vers `168.63.129.16` (Azure DNS interne).
 
 ```bash
 # Zones DNS privées à créer dans Azure
-privatelink.his.arc.azure.com         # Arc
+privatelink.his.arc.azure.com              # Arc
 privatelink.guestconfiguration.azure.com
-privatelink.monitor.azure.com         # AMPLS
+privatelink.monitor.azure.com              # AMPLS
 privatelink.ods.opinsights.azure.com
 privatelink.oms.opinsights.azure.com
 privatelink.agentsvc.azure-automation.net
@@ -1773,13 +1813,12 @@ privatelink.blob.core.windows.net
 ### 18.5 — Comparaison test vs Production
 
 | Critère | Architecture test | Architecture production |
-|---------|-----------------|------------------------|
+|---------|-------------------|------------------------|
 | Flux Arc | Internet public (HTTPS 443) | Private Link (backbone Microsoft) |
 | Flux AMA | Internet public (HTTPS 443) | AMPLS (Private Endpoint) |
 | DNS | Résolution publique | DNS Private Zones + Forwarder |
 | Firewall | `*.azure.com` ouvert | VPN GW only, internet bloqué |
 | Conformité | Lab acceptable | PCI-DSS / ISO 27001 ✅ |
-
 
 ---
 
@@ -1807,8 +1846,8 @@ Phase 4 — Durcissement
   └── Valider résolution DNS privée depuis les VMs
 ```
 
-
 ---
+
 ## 🎓 Compétences démontrées
 
 ### Administration Linux (RHCSA)
@@ -1818,9 +1857,9 @@ Phase 4 — Durcissement
 | Gestion des utilisateurs | Création de `arcadmin`, isolation sudo, groupes dédiés |
 | Configuration réseau | IP statique avec `nmcli`, résolution DNS locale |
 | SSH sécurisé | Clés Ed25519, désactivation mot de passe, banner légal |
-| Firewalld | Règles entrantes minimales, port 443 autorisé |
+| Firewalld | Règles `/32` par hôte, HTTPS 443 sortant, principe moindre privilège |
 | SELinux | Mode Enforcing permanent, audit des contextes |
-| Systemd | Gestion des services Arc (`himds`) et AMA |
+| Systemd | Gestion des services Arc (`himdsd`) et AMA |
 | Administration RHEL 9 | DNF, RPM, journald, `/var/log/*` |
 
 ### Administration Azure (AZ-104)
@@ -1829,8 +1868,8 @@ Phase 4 — Durcissement
 |---|---|
 | Resource Management | Resource Group avec 5 tags, convention de nommage rigoureuse |
 | Azure Arc | Connexion et gestion de serveurs Linux on-premises |
-| Azure Monitor | DCR, métriques, alertes multi-seuils |
-| Log Analytics | Tables, requêtes KQL (8 requêtes), rétention 90 jours |
+| Azure Monitor | DCR, métriques Perf, alertes multi-seuils |
+| Log Analytics | Tables Heartbeat/Perf/Syslog, 8 requêtes KQL, rétention 90 jours |
 | Update Manager | Inventaire, conformité, déploiement planifié |
 | Governance | Inventaire centralisé, audit de conformité PCI-DSS |
 
@@ -1842,6 +1881,7 @@ Phase 4 — Durcissement
 | Unified Management | Un seul portail Azure pour l'on-premises et le cloud |
 | Security | SELinux + Firewalld + SSH hardening + Azure RBAC |
 | Observability | Supervision unifiée : métriques, logs, alertes, dashboards |
+| Architecture Production | Arc Private Link + AMPLS (zéro exposition publique) |
 
 ---
 
@@ -1856,5 +1896,5 @@ Phase 4 — Durcissement
 
 ---
 
-*Réalisé par **Serge TOGNON**  Administrateur Cloud Azure Certifié (AZ-104) | Candidat RHCSA*
-*LinkedIn : [linkedin.com/in/serge-tognon](www.linkedin.com/in/serge-tognon-a63443187)*
+*Réalisé par **Serge TOGNON** — Administrateur Cloud Azure Certifié (AZ-104) | Candidat RHCSA*
+*LinkedIn : [linkedin.com/in/serge-tognon](https://www.linkedin.com/in/serge-tognon-a63443187)*

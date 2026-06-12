@@ -1394,7 +1394,7 @@ echo "Kernel après  : $(uname -r)"
 
 ### Rôle du tableau de bord
 
-Le tableau de bord centralise en une seule vue tous les indicateurs de santé de l'infrastructure hybride FinSecure SA — état Arc, métriques système, alertes actives et conformité des mises à jour — sans avoir à naviguer entre les différents services Azure.
+Le tableau de bord centralise en une seule vue tous les indicateurs de santé de l'infrastructure hybride FinSecure SA ; état Arc, métriques système, alertes actives et conformité des mises à jour , sans avoir à naviguer entre les différents services Azure.
 
 ---
 
@@ -1504,10 +1504,8 @@ Perf
 2. Sélectionner la ressource concernée
 3. Choisir la métrique native
 
-> **📸 Capture 14a** — `screenshots/14a_dashboard_overview.png`
-> Chemin portail : `Tableaux de bord → dashboard-finsecure-ops`
-> Le tableau de bord doit afficher **au minimum 4 tuiles actives** avec des données réelles.
-> Aucune tuile ne doit afficher **"Aucune donnée"**.
+<img width="911" height="397" alt="13b" src="https://github.com/user-attachments/assets/c2d42000-be96-47e0-a070-684301cbe5b9" />
+
 
 ---
 
@@ -1520,19 +1518,31 @@ Perf
 az resource list \
   --resource-group rg-finsecure-arc \
   --output table
+```
+
+<img width="896" height="329" alt="15a" src="https://github.com/user-attachments/assets/e0b322cc-cf1d-4b39-99b2-8bdb74cb4cf6" />
+
 
 # Statut des machines Arc
 az connectedmachine list \
   --resource-group rg-finsecure-arc \
   --query "[].{Nom:name, Statut:status, OS:osName, Version:agentVersion}" \
-  --output table
+  --output table  
+`
+
+<img width="956" height="232" alt="15b" src="https://github.com/user-attachments/assets/2adc6457-b17a-4af8-a291-fdd6be60ba90" />
+
+  
 
 # Extensions installées
 az connectedmachine extension list \
   --machine-name admin-lab-local \
   --resource-group rg-finsecure-arc \
   --output table
-```
+``
+
+<img width="958" height="211" alt="15c" src="https://github.com/user-attachments/assets/c6021cfb-3068-4379-b516-107c19af6e07" />
+
 
 ### Requête KQL — Rapport de conformité global
 
@@ -1550,8 +1560,8 @@ Heartbeat
 | project Computer, Status, AvailabilityScore, LastSeen, Version
 ```
 
-> **📸 Capture 15a** — `screenshots/15a_compliance_report.png`
-> Les deux serveurs doivent afficher le statut **"✅ En ligne"** avec leur score de disponibilité.
+<img width="915" height="297" alt="15d" src="https://github.com/user-attachments/assets/1e0c2fcc-84eb-4e70-9725-99be30095c70" />
+
 
 ---
 
@@ -1896,5 +1906,5 @@ Phase 4 — Durcissement
 
 ---
 
-*Réalisé par **Serge TOGNON** — Administrateur Cloud Azure Certifié (AZ-104) | Candidat RHCSA*
+*Réalisé par **Serge TOGNON**  Administrateur Cloud Azure Certifié (AZ-104) | Candidat RHCSA*
 *LinkedIn : [linkedin.com/in/serge-tognon](https://www.linkedin.com/in/serge-tognon-a63443187)*

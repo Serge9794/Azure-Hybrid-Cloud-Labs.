@@ -11,15 +11,16 @@
 
 # Présentation
 
-**Enterprise Hybrid Infrastructure Platform** est un laboratoire avancé reproduisant une infrastructure informatique d'entreprise moderne intégrant **Red Hat Enterprise Linux 10.2** et **Microsoft Azure**.
+**Enterprise Hybrid Infrastructure Platform** est un laboratoire avancé reproduisant une infrastructure informatique d'entreprise moderne intégrant **Red Hat Enterprise Linux 9.8** et **Microsoft Azure**.
 
 L'objectif est de démontrer les compétences attendues d'un **Administrateur Système Linux**, d'un **Ingénieur Cloud Azure** ou d'un **Ingénieur DevOps**, en mettant en œuvre une plateforme hybride complète reposant sur des bonnes pratiques d'administration, d'automatisation, de supervision, de sécurité et de gouvernance.
 
-Contrairement à un simple laboratoire RHCSA, ce projet reproduit une infrastructure proche d'un environnement de production, en s'appuyant sur la version actuelle de RHEL (10.2, mai 2026) et sur les mécanismes de sécurité réseau recommandés par la documentation Microsoft Azure pour les charges de travail hybrides.
+Contrairement à un simple laboratoire RHCSA, ce projet reproduit une infrastructure proche d'un environnement de production, en s'appuyant sur la version actuelle de RHEL 9.8 et sur les mécanismes de sécurité réseau recommandés par la documentation Microsoft Azure pour les charges de travail hybrides.
 
-> 📸 **Capture 1 — Vue d'ensemble du laboratoire**
-> `![Vue VirtualBox des deux machines](docs/screenshots/01-virtualbox-overview.png)`
-> *À insérer ici : capture VirtualBox montrant les deux VM (client.lab.local et server.lab.local) démarrées côte à côte.*
+> 📸 **Vue d'ensemble du laboratoire**
+
+<img width="958" height="260" alt="1" src="https://github.com/user-attachments/assets/24538bfd-7f1a-4ee2-a784-d12b5b0e564e" />
+
 
 ---
 
@@ -45,12 +46,11 @@ Cette plateforme met en œuvre :
 
 | Domaine | Technologie | Version / précision |
 |----------|-------------|----------------------|
-| Système | Red Hat Enterprise Linux | 10.2 (mai 2026) |
+| Système | Red Hat Enterprise Linux | 9.8 |
 | Administration distante | OpenSSH | 9.9 |
 | Sécurité obligatoire | SELinux userspace | 3.8 |
-| Assistant IA en ligne de commande | RHEL Lightspeed (`command-line-assistant`, démon `clad`) | Intégré nativement à RHEL 10 |
 | Cryptographie | Post-quantum crypto policies | Technology Preview |
-| Gestion sudo centralisée | Rôle système `sudo` (Ansible System Roles) | RHEL 10 |
+| Gestion sudo centralisée | Rôle système `sudo` (Ansible System Roles) | RHEL  |
 | Cloud | Microsoft Azure | — |
 | Hybride | Azure Arc | Private Link Scope (Arc PLS) |
 | Supervision | Azure Monitor | Azure Monitor Private Link Scope (AMPLS) |
@@ -85,9 +85,8 @@ L'infrastructure est organisée autour de deux machines virtuelles Red Hat Enter
 
 Ces deux serveurs communiquent via SSH sur un réseau privé VirtualBox, tandis que le serveur est connecté à Microsoft Azure afin de bénéficier des services hybrides.
 
-> 📸 **Capture 2 — Identification des hôtes**
-> `![hostnamectl client](docs/screenshots/02-hostnamectl-client.png)`
-> *À insérer ici : sortie de `hostnamectl` sur client.lab.local.*
+> 📸 **Identification du client**
+
 
 > 📸 **Capture 3 — Identification du serveur**
 > `![hostnamectl server](docs/screenshots/03-hostnamectl-server.png)`
@@ -136,13 +135,21 @@ Cette nouvelle version du projet est donc conçue pour évoluer progressivement 
 
 Une première implémentation reposera sur les endpoints publics afin de rester reproductible dans un laboratoire personnel, avant de documenter une architecture de niveau production utilisant les Private Endpoints, avec Arc PLS et AMPLS clairement représentés comme deux ressources séparées sur le schéma.
 
-> 📊 **Schéma 1 — Architecture v1 (endpoints publics)**
-> `![Architecture publique](docs/screenshots/07-architecture-v1-public.png)`
-> *À insérer ici : diagramme Draw.io montrant les deux VM, Ansible, et les flux vers Azure Arc/Monitor via endpoints publics.*
+
+
+> 📊 **Architecture v1 (endpoints publics)**
+
+<img width="680" height="390" alt="07-architecture-v1-public" src="https://github.com/user-attachments/assets/416b9021-cad5-4371-a974-de681d14b378" />
+
+
+
+
+
+
 
 > 📊 **Schéma 2 — Architecture cible (Arc PLS + AMPLS séparés)**
-> `![Architecture Private Link](docs/screenshots/08-architecture-v2-privatelink.png)`
-> *À insérer ici, juste après la liste des évolutions : même diagramme, mais avec deux ressources distinctes bien identifiées — Arc Private Link Scope d'un côté, Azure Monitor Private Link Scope (AMPLS) de l'autre — reliées chacune à leur propre private endpoint dans le VNet.*
+
+<img width="680" height="410" alt="08-architecture-v2-privatelink" src="https://github.com/user-attachments/assets/4d4e518f-e283-4c55-92b6-4483f213b4b1" />
 
 ---
 
